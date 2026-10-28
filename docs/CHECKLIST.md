@@ -26,6 +26,9 @@ they prove our own logic, not that Telegram/AI/Blender behave the same way on th
 | Versioned, checksummed manifests | ✅ | |
 | Conversation state survives restart | ✅ | |
 | Stale / forged callback handling, rate limit | ✅ | |
+| Short main menu (6 buttons) + 🧰 Aur tools | ✅ | owner asked 2026-10-28 |
+| Guided 🎬 Nayi video flow: story (paste / file / AI genre+length+idea) → auto casting + photos + AI images → voice (M8) → final check → video | ✅ sandbox / ⬜ laptop | tests/integration/test_wizard.py (fake Telegram, fake AI) |
+| No stand-in figure / plain sky in videos: missing picture blocks the render | ✅ | |
 
 ## Milestone 3 — Persistent Scheduler
 | Item | Status | Notes |
