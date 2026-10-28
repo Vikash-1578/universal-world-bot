@@ -147,7 +147,7 @@ class LLM:
             text = (j.get("choices") or [{}])[0].get("message", {}).get("content") or ""
         except (aiohttp.ClientError, asyncio.TimeoutError, ValueError, KeyError) as e:
             raise ProviderUnavailable("provider error", detail=type(e).__name__) from e
-        text = text.strip()
+        text = strip_thinking(text)
         if not text:
             raise ProviderUnavailable("provider error", detail="empty reply")
         return text
@@ -161,6 +161,14 @@ class LLM:
                 return data
             last = text[:120]
         raise ProviderUnavailable("AI ne sahi format me jawab nahi diya, dobara try karo.", detail=last)
+
+
+def strip_thinking(text: str) -> str:
+    """Reasoning models (Qwen3, DeepSeek-R1) put their private reasoning in <think>...</think>: drop it."""
+    t = re.sub(r"<think>.*?</think>", "", text or "", flags=re.S | re.I)
+    if "<think>" in t.lower():  # unfinished thinking block (cut off) -> keep only what came before it
+        t = t[: t.lower().index("<think>")]
+    return t.strip()
 
 
 def extract_json(text: str) -> dict | list | None:

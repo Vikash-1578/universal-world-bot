@@ -40,3 +40,10 @@ powershell -ExecutionPolicy Bypass -File scripts\install.ps1 -SkipConfig
 ## Better FFmpeg (recommended)
 The installer brings a basic FFmpeg. For `ffprobe` (stronger video checks):
 `winget install Gyan.FFmpeg`, then restart PowerShell.
+
+## Free local AI (optional, recommended)
+1. Install Ollama from ollama.com.
+2. Download a model that fits 8 GB VRAM, e.g. `ollama pull qwen3:8b` (good with Hindi).
+   If PowerShell does not know `ollama`, use `& "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" pull qwen3:8b`.
+3. The bot finds it automatically (Script Studio shows "AI: chalu"). To pick a specific model, set
+   `ollama_model = "qwen3:8b"` under `[llm]` in `config\config.toml`.

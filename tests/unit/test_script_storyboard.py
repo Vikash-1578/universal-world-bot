@@ -9,7 +9,7 @@ from aiohttp import web
 from aiohttp.test_utils import TestServer
 
 from app.core.errors import Conflict, InvalidInput
-from app.models.llm import LLM, LLMUnavailable, extract_json
+from app.models.llm import LLM, LLMUnavailable, extract_json, strip_thinking
 from app.scripts import parser
 from app.scripts.inputs import read_text_file
 from tests.helpers import TempDirCase, make_hub
@@ -234,3 +234,7 @@ class LLMTests(TempDirCase):
         self.assertEqual(extract_json('```json\n{"a": 1}\n```'), {"a": 1})
         self.assertEqual(extract_json('Sure! {"a": [1]} done'), {"a": [1]})
         self.assertIsNone(extract_json("no json"))
+
+    async def test_strip_thinking(self):
+        self.assertEqual(strip_thinking("<think>\nhmm plan\n</think>\n\nTitle: X"), "Title: X")
+        self.assertEqual(strip_thinking("Title: Y <think>cut off"), "Title: Y")
