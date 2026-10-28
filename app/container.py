@@ -74,7 +74,8 @@ def build_hub(settings: Settings) -> Hub:
 
     llm_cfg = settings.raw.get("llm", {})
     hub.llm = LLM(settings.keys, lambda: hub.cloud_enabled, models=llm_cfg.get("models"),
-                  ollama_url=llm_cfg.get("ollama_url", "http://127.0.0.1:11434"), ollama_model=llm_cfg.get("ollama_model", ""))
+                  ollama_url=llm_cfg.get("ollama_url", "http://127.0.0.1:11434"), ollama_model=llm_cfg.get("ollama_model", ""),
+                  prefer_cloud=lambda: hub.db.get_setting("ai_order", "local") == "cloud")
     hub.scripts = ScriptService(db, hub.projects, hub.llm)
     hub.storyboards = StoryboardService(db, hub.projects, hub.scripts, hub.llm)
     from app.characters.service import LibraryService

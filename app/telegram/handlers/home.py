@@ -106,15 +106,22 @@ async def cb_menu(cb: CallbackQuery, hub) -> None:
 
 async def show_settings(target, hub) -> None:
     on = hub.cloud_enabled
+    cloud_first = hub.db.get_setting("ai_order", "local") == "cloud"
     providers = sorted({k for k, _ in hub.settings.keys})
     text = ("⚙️ Settings\n\n"
             f"☁️ Cloud AI: {'ON ✅' if on else 'OFF ⛔'}\n"
             "OFF = koi bhi cloud/paid AI service use nahi hogi, sirf laptop par chalne wale tools.\n"
             "ON = keys.txt me di gayi services (jaise Groq, Gemini, Cloudflare) story/awaaz/images ke liye use ho sakti hain. "
             "Inme free limit hoti hai; limit ke baad kuch services paise maang sakti hain.\n\n"
-            f"keys.txt me providers: {', '.join(providers) if providers else 'koi nahi'}")
+            f"keys.txt me providers: {', '.join(providers) if providers else 'koi nahi'}\n\n"
+            f"🧠 AI pehle: {'☁️ Cloud' if cloud_first else '💻 Laptop (Ollama)'}\n"
+            + ("Cloud pehle try hoga (behtar Hindi), fail ho to laptop." if cloud_first else
+               "Laptop pehle try hoga (free, private); wo band/fail ho to cloud.")
+            + ("" if on else "\n(Cloud AI OFF hai, isliye abhi sirf laptop chalega.)"))
     kb = KB(inline_keyboard=[
         [B(text="☁️ Cloud AI band karo" if on else "☁️ Cloud AI chalu karo", callback_data=make("s", "cloud", "off" if on else "ask"))],
+        [B(text="🧠 AI pehle: 💻 Laptop karo" if cloud_first else "🧠 AI pehle: ☁️ Cloud karo",
+           callback_data=make("s", "order", "local" if cloud_first else "cloud"))],
         nav(),
     ])
     await show(target, text, kb)
@@ -135,6 +142,11 @@ async def cb_settings(cb: CallbackQuery, hub) -> None:
             hub.approvals.consume(c.arg(), "cloud_enable", "global")
             hub.set_cloud(True)
             await answer(cb, "Cloud AI ON")
+            await show_settings(cb, hub)
+        elif c.action == "order" and c.arg() in ("local", "cloud"):
+            hub.db.set_setting("ai_order", c.arg())
+            hub.audit.record("ai_order", "ok", "setting", c.arg())
+            await answer(cb, "AI pehle: " + ("Cloud" if c.arg() == "cloud" else "Laptop"))
             await show_settings(cb, hub)
         elif c.action == "cloud" and c.arg() == "off":
             hub.set_cloud(False)

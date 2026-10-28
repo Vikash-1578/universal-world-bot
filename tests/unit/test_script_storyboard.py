@@ -242,6 +242,15 @@ class LLMTests(TempDirCase):
             self.assertFalse(await llm2.available())
             cloud_on["v"] = True
             self.assertTrue(await llm2.available())
+            # owner chose "cloud first": cloud is tried before the local model
+            first = {"v": True}
+            llm3 = LLM([("groq", "gsk_x")], lambda: cloud_on["v"], ollama_url=url, prefer_cloud=lambda: first["v"])
+            llm3.cloud[0].base = f"{url}/v1"
+            self.assertEqual(await llm3.chat("hi"), "hi from llama-3.3-70b-versatile")
+            self.assertEqual(llm3.last_provider, "groq:llama-3.3-70b-versatile")
+            first["v"] = False
+            await llm3.chat("hi")
+            self.assertEqual(llm3.last_provider, "ollama:llama3.1:8b")
         finally:
             await srv.close()
 

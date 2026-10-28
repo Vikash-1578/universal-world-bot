@@ -53,8 +53,10 @@ class Provider:
 
 class LLM:
     def __init__(self, keys: list[tuple[str, str]], cloud_enabled: Callable[[], bool], *, models: dict[str, str] | None = None,
-                 ollama_url: str = OLLAMA, ollama_model: str = "", timeout: float = 90.0) -> None:
+                 ollama_url: str = OLLAMA, ollama_model: str = "", timeout: float = 90.0,
+                 prefer_cloud: Callable[[], bool] = lambda: False) -> None:
         self.cloud_enabled = cloud_enabled
+        self.prefer_cloud = prefer_cloud  # owner's choice in Settings: "AI pehle: Cloud"
         self.timeout = timeout
         self.ollama_url = ollama_url.rstrip("/")
         self.ollama_model = ollama_model
@@ -98,12 +100,10 @@ class LLM:
     # ---------------------------------------------------------------- calls
     async def chat(self, prompt: str, *, system: str = "", max_tokens: int = 2048, temperature: float = 0.7,
                    json_mode: bool = False) -> str:
-        order: list[Provider] = []
         local = await self.detect_local()
-        if local:
-            order.append(local)
-        if self.cloud_enabled():
-            order += [p for p in self.cloud if p.cooldown_until <= time.time()]
+        locals_ = [local] if local else []
+        clouds = [p for p in self.cloud if p.cooldown_until <= time.time()] if self.cloud_enabled() else []
+        order: list[Provider] = clouds + locals_ if self.prefer_cloud() else locals_ + clouds
         if not order:
             raise LLMUnavailable(
                 "AI likhne ke liye abhi koi model chalu nahi hai.\n"

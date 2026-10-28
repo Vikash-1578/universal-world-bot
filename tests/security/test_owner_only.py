@@ -50,3 +50,11 @@ class OwnerOnlyTests(TempDirCase):
     async def test_owner_ok(self):
         await feed(self.bot, self.dp, msg_update("/start", uid=OWNER))
         self.assertIn("Video Production Hub", texts(self.sess)[-1])
+
+    async def test_ai_order_toggle(self):
+        await feed(self.bot, self.dp, cb_update(make("m", "settings")))
+        self.assertIn("AI pehle: 💻 Laptop", texts(self.sess)[-1])
+        await feed(self.bot, self.dp, cb_update(make("s", "order", "cloud")))
+        self.assertEqual(self.hub.db.get_setting("ai_order"), "cloud")
+        self.assertTrue(self.hub.llm.prefer_cloud())
+        self.assertIn("AI pehle: ☁️ Cloud", texts(self.sess)[-1])
