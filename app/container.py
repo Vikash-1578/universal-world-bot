@@ -1,0 +1,72 @@
+"""Builds and holds all services (dependency container). Telegram handlers receive `hub` and call services;
+they never touch renderers or AI providers directly."""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+from app.core.config import Settings
+from app.core.events import EventBus
+from app.core.security import Approvals
+from app.observability.audit import Audit
+from app.projects.service import ProjectService
+from app.scheduler.service import JobService
+from app.storage.db import Database
+
+
+@dataclass
+class Hub:
+    settings: Settings
+    db: Database
+    audit: Audit
+    approvals: Approvals
+    bus: EventBus
+    projects: ProjectService
+    jobs: JobService
+    extra: dict[str, Any] = field(default_factory=dict)
+    status: dict[str, str] = field(default_factory=dict)
+    bot: Any = None
+
+    # cloud opt-in (master prompt 3.8/3.9): off until the owner switches it on in Settings
+    @property
+    def cloud_enabled(self) -> bool:
+        return bool(self.db.get_setting("cloud_enabled", False))
+
+    def set_cloud(self, on: bool) -> None:
+        self.db.set_setting("cloud_enabled", bool(on))
+        self.audit.record("cloud_enable" if on else "cloud_disable")
+
+    async def start(self, bot: Any) -> None:
+        self.bot = bot
+        for hook in self.extra.get("on_start", []):
+            await hook(self)
+        await self.jobs.start()
+        self.status["scheduler"] = "running"
+
+    async def stop(self) -> None:
+        await self.jobs.stop()
+        self.status["scheduler"] = "stopped"
+        self.db.close()
+
+
+def build_hub(settings: Settings) -> Hub:
+    db = Database(settings.db_path)
+    audit = Audit(db)
+    bus = EventBus()
+    hub = Hub(
+        settings=settings,
+        db=db,
+        audit=audit,
+        approvals=Approvals(db, audit),
+        bus=bus,
+        projects=ProjectService(db, settings.data_dir),
+        jobs=JobService(db, bus, settings.data_dir / "work", heavy_slots=settings.max_heavy_workers,
+                        light_slots=settings.max_light_workers),
+    )
+    from app.pipelines import register_all  # job handlers for each milestone
+
+    from app.telegram.conversations.state import Conversations
+
+    hub.extra["conv"] = Conversations(db)
+    register_all(hub)
+    return hub

@@ -1,0 +1,6 @@
+# Optional cloud AI keys, one per line:  provider:key   (copy to keys.txt — never commit keys.txt)
+# Cloud AI stays OFF until you switch it on in Telegram: Settings -> Cloud AI.
+# groq:gsk_xxxxxxxx
+# gemini:AIzaxxxxxxxx
+# CF_ACCOUNT_ID=xxxxxxxx
+# CF_API_TOKEN=xxxxxxxx

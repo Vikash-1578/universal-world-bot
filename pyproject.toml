@@ -1,0 +1,13 @@
+[project]
+name = "universal-world-bot"
+version = "0.1.0"
+description = "Single-owner, Telegram-controlled, local-first AI video production hub"
+requires-python = ">=3.11"
+readme = "README.md"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 130

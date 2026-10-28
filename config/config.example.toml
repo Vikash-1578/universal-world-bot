@@ -1,0 +1,17 @@
+# Copy to config/config.toml to change defaults. Secrets do NOT go here (use .env / keys.txt).
+[hub]
+timezone = "Asia/Kolkata"
+data_dir = "data"            # projects, assets, renders, database, backups
+max_heavy_workers = 1         # renders / AI at the same time (16 GB RAM -> 1 is safest)
+max_light_workers = 2
+log_level = "INFO"
+
+[render]
+fps = 30
+
+[storage]
+temp_retention_days = 7       # temporary render files older than this may be cleaned (never finals / sources)
+
+[tools]
+ffmpeg = ""                   # empty = auto-detect
+blender = ""
