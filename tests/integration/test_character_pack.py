@@ -65,7 +65,7 @@ class PackTests(TempDirCase):
         lib = self.hub.library
         it = lib.create_item("character", "Golu", {"look": "a cheerful boy in a red shirt"})
         lib.add_image(it["id"], "main", face_figure())
-        pid = self.hub.projects.create_project("P", "2d")["id"]
+        pid = self.hub.projects.create_project("Pack test", "2d")["id"]
         lib.cast(pid, "Golu", it["id"])
         self.hub.jobs.submit_job(pack.JOB, None, {"item_id": it["id"], "exprs": list(pack.ORDER),
                                                   "recast": {"project_id": pid, "role": "Golu"}}, 5)
