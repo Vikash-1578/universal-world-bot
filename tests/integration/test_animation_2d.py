@@ -192,7 +192,7 @@ class AnimationTelegramTests(TempDirCase):
         await feed(self.bot, self.dp, cb_update(make("an", "open", self.pid)))
         t = texts(self.sess)[-1]
         self.assertIn("Scenes: 2", t)
-        self.assertIn("awaaz nahi", t)
+        self.assertIn("🎤 Awaaz: fake-voice", t)
         self.assertIn(make("an", "go", self.pid, "preview"), buttons(self.sess))
         await feed(self.bot, self.dp, cb_update(make("an", "go", self.pid, "final")))  # draft -> blocked with an alert
         self.assertEqual(self.hub.jobs.list_jobs(project_id=self.pid), [])
