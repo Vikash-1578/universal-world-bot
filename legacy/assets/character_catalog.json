@@ -1,0 +1,449 @@
+{
+ "style": "bright 2D cartoon, flat colours, clean dark outlines, Indian cartoon animation style",
+ "categories": {
+  "gaon": "🏡 Gaon",
+  "desi": "🇮🇳 Desi",
+  "bachche": "🧒 Bachche",
+  "school": "🏫 School",
+  "office": "🏢 Office",
+  "western": "🌍 Western",
+  "itihaas": "👑 Raja-Rani",
+  "animals": "🦁 Animals",
+  "birds": "🦜 Birds",
+  "horror": "👻 Horror"
+ },
+ "characters": [
+  {
+   "id": "kisan_ramu",
+   "name": "Ramu Kisan",
+   "category": "gaon",
+   "gender": "m",
+   "age": "adult",
+   "voice": "hi-man",
+   "look": "thin Indian village farmer, brown skin, thick black moustache, white dhoti and beige kurta, red gamchha towel on shoulder, bare feet"
+  },
+  {
+   "id": "kisan_patni",
+   "name": "Sita (kisan ki patni)",
+   "category": "gaon",
+   "gender": "f",
+   "age": "adult",
+   "voice": "hi-woman",
+   "look": "Indian village woman, simple green cotton saree with red border, hair in a bun, small red bindi, glass bangles"
+  },
+  {
+   "id": "dada_gaon",
+   "name": "Dadaji",
+   "category": "gaon",
+   "gender": "m",
+   "age": "old",
+   "voice": "hi-old-man",
+   "look": "old Indian village grandfather, white hair and white moustache, round glasses, white kurta and dhoti, wooden walking stick"
+  },
+  {
+   "id": "dadi_gaon",
+   "name": "Dadi Maa",
+   "category": "gaon",
+   "gender": "f",
+   "age": "old",
+   "voice": "hi-old-woman",
+   "look": "old Indian grandmother, grey hair bun, white saree with blue border, round glasses, kind smile"
+  },
+  {
+   "id": "mukhiya",
+   "name": "Mukhiya ji",
+   "category": "gaon",
+   "gender": "m",
+   "age": "adult",
+   "voice": "hi-villain",
+   "look": "plump Indian village headman, big curled moustache, white kurta with brown sleeveless jacket, orange turban, gold chain"
+  },
+  {
+   "id": "thelewala",
+   "name": "Golu Thelewala",
+   "category": "gaon",
+   "gender": "m",
+   "age": "adult",
+   "voice": "hi-comic",
+   "look": "cheerful chubby Indian street food vendor, yellow vest and blue lungi, orange headband, small moustache"
+  },
+  {
+   "id": "dukandar",
+   "name": "Lala ji Dukandar",
+   "category": "desi",
+   "gender": "m",
+   "age": "adult",
+   "voice": "hi-man",
+   "look": "fat Indian shopkeeper, bald head, grey moustache, cream kurta pajama, black waistcoat, pen behind ear"
+  },
+  {
+   "id": "maa_shahar",
+   "name": "Maa (shahar)",
+   "category": "desi",
+   "gender": "f",
+   "age": "adult",
+   "voice": "hi-woman",
+   "look": "Indian city mother, purple salwar kameez with dupatta, long braided hair, warm smile"
+  },
+  {
+   "id": "papa_shahar",
+   "name": "Papa (shahar)",
+   "category": "desi",
+   "gender": "m",
+   "age": "adult",
+   "voice": "hi-man",
+   "look": "Indian city father, neat short hair, light blue shirt tucked in grey trousers, wrist watch"
+  },
+  {
+   "id": "doctor",
+   "name": "Doctor Sharma",
+   "category": "desi",
+   "gender": "m",
+   "age": "adult",
+   "voice": "hi-man",
+   "look": "Indian doctor, white coat over blue shirt, stethoscope around neck, glasses, short neat hair"
+  },
+  {
+   "id": "police",
+   "name": "Inspector Singh",
+   "category": "desi",
+   "gender": "m",
+   "age": "adult",
+   "voice": "hi-villain",
+   "look": "Indian police inspector, khaki uniform with belt and cap, thick moustache, wooden stick"
+  },
+  {
+   "id": "bacha_raju",
+   "name": "Raju",
+   "category": "bachche",
+   "gender": "m",
+   "age": "child",
+   "voice": "hi-boy",
+   "look": "small Indian boy about 8 years old, messy black hair, big eyes, yellow t-shirt and blue shorts, sneakers"
+  },
+  {
+   "id": "bachi_priya",
+   "name": "Priya",
+   "category": "bachche",
+   "gender": "f",
+   "age": "child",
+   "voice": "hi-girl",
+   "look": "small Indian girl about 8 years old, two braids with red ribbons, pink frock, white socks and shoes"
+  },
+  {
+   "id": "bacha_golu",
+   "name": "Golu",
+   "category": "bachche",
+   "gender": "m",
+   "age": "child",
+   "voice": "hi-comic",
+   "look": "chubby little Indian boy, round face, green t-shirt and brown shorts, short spiky hair"
+  },
+  {
+   "id": "baby",
+   "name": "Munna (baby)",
+   "category": "bachche",
+   "gender": "m",
+   "age": "child",
+   "voice": "hi-boy",
+   "look": "cute Indian toddler, big head, light blue romper, tiny curl of hair on forehead"
+  },
+  {
+   "id": "teacher_f",
+   "name": "Madam ji (teacher)",
+   "category": "school",
+   "gender": "f",
+   "age": "adult",
+   "voice": "hi-woman",
+   "look": "Indian school teacher, pastel saree, glasses, hair in a bun, holding a book"
+  },
+  {
+   "id": "teacher_m",
+   "name": "Masterji",
+   "category": "school",
+   "gender": "m",
+   "age": "adult",
+   "voice": "hi-old-man",
+   "look": "strict Indian schoolmaster, grey hair, round glasses, white shirt with brown sweater vest, holding a ruler"
+  },
+  {
+   "id": "student_boy",
+   "name": "Rohan (student)",
+   "category": "school",
+   "gender": "m",
+   "age": "child",
+   "voice": "hi-boy",
+   "look": "Indian school boy, white shirt with blue tie, navy shorts, school bag on back"
+  },
+  {
+   "id": "student_girl",
+   "name": "Anjali (student)",
+   "category": "school",
+   "gender": "f",
+   "age": "child",
+   "voice": "hi-girl",
+   "look": "Indian school girl, white shirt, navy pinafore, two plaits with white ribbons, school bag"
+  },
+  {
+   "id": "boss",
+   "name": "Boss Malhotra",
+   "category": "office",
+   "gender": "m",
+   "age": "adult",
+   "voice": "hi-villain",
+   "look": "Indian office boss, dark grey suit with red tie, slicked back hair, thin moustache"
+  },
+  {
+   "id": "employee_m",
+   "name": "Sharma ji (employee)",
+   "category": "office",
+   "gender": "m",
+   "age": "adult",
+   "voice": "hi-man",
+   "look": "tired Indian office employee, light shirt with loose tie, glasses, carrying files"
+  },
+  {
+   "id": "employee_f",
+   "name": "Neha (employee)",
+   "category": "office",
+   "gender": "f",
+   "age": "adult",
+   "voice": "hi-woman",
+   "look": "young Indian office woman, white blouse, navy blazer and trousers, ponytail, ID card on neck"
+  },
+  {
+   "id": "western_man",
+   "name": "John",
+   "category": "western",
+   "gender": "m",
+   "age": "adult",
+   "voice": "en-man",
+   "look": "young man with brown hair, blue denim jacket over white t-shirt, jeans, sneakers"
+  },
+  {
+   "id": "western_woman",
+   "name": "Emma",
+   "category": "western",
+   "gender": "f",
+   "age": "adult",
+   "voice": "en-woman",
+   "look": "young woman with long blonde hair, red sweater, black jeans, ankle boots"
+  },
+  {
+   "id": "western_kid",
+   "name": "Tommy",
+   "category": "western",
+   "gender": "m",
+   "age": "child",
+   "voice": "en-boy",
+   "look": "little boy with curly red hair, freckles, striped t-shirt, blue overalls"
+  },
+  {
+   "id": "raja",
+   "name": "Raja",
+   "category": "itihaas",
+   "gender": "m",
+   "age": "adult",
+   "voice": "hi-lion",
+   "look": "Indian king, golden crown, royal red and gold sherwani, pearl necklaces, curled moustache, sword at waist"
+  },
+  {
+   "id": "rani",
+   "name": "Rani",
+   "category": "itihaas",
+   "gender": "f",
+   "age": "adult",
+   "voice": "hi-woman",
+   "look": "Indian queen, golden crown, rich maroon and gold lehenga, jewellery, elegant"
+  },
+  {
+   "id": "rishi",
+   "name": "Rishi Muni",
+   "category": "itihaas",
+   "gender": "m",
+   "age": "old",
+   "voice": "hi-old-man",
+   "look": "old Indian sage, long white beard and hair in a top knot, saffron robe, rudraksha beads, wooden staff"
+  },
+  {
+   "id": "sainik",
+   "name": "Sainik",
+   "category": "itihaas",
+   "gender": "m",
+   "age": "adult",
+   "voice": "hi-man",
+   "look": "ancient Indian soldier, metal helmet, leather armour, red cloth, holding a spear and round shield"
+  },
+  {
+   "id": "mantri",
+   "name": "Mantri ji",
+   "category": "itihaas",
+   "gender": "m",
+   "age": "adult",
+   "voice": "hi-villain",
+   "look": "sly royal minister, thin, pointed moustache, green turban, long purple robe, rings"
+  },
+  {
+   "id": "sher",
+   "name": "Sher Raja",
+   "category": "animals",
+   "gender": "m",
+   "age": "adult",
+   "voice": "hi-lion",
+   "look": "big friendly cartoon lion standing on four legs, golden fur, thick orange mane"
+  },
+  {
+   "id": "chuha",
+   "name": "Chinki Chuhiya",
+   "category": "animals",
+   "gender": "f",
+   "age": "child",
+   "voice": "hi-tiny",
+   "look": "tiny cute cartoon mouse standing upright, grey fur, big round pink ears, long tail"
+  },
+  {
+   "id": "bandar",
+   "name": "Bandar Mama",
+   "category": "animals",
+   "gender": "m",
+   "age": "adult",
+   "voice": "hi-comic",
+   "look": "naughty cartoon monkey standing upright, brown fur, cream face, long curly tail"
+  },
+  {
+   "id": "hathi",
+   "name": "Haathi Dada",
+   "category": "animals",
+   "gender": "m",
+   "age": "old",
+   "voice": "hi-old-man",
+   "look": "big gentle cartoon elephant standing on four legs, grey skin, big ears, long trunk"
+  },
+  {
+   "id": "lomdi",
+   "name": "Chalak Lomdi",
+   "category": "animals",
+   "gender": "f",
+   "age": "adult",
+   "voice": "hi-villain",
+   "look": "clever cartoon fox standing upright, orange fur, white chest, bushy tail, sly smile"
+  },
+  {
+   "id": "khargosh",
+   "name": "Bunny Khargosh",
+   "category": "animals",
+   "gender": "m",
+   "age": "child",
+   "voice": "hi-tiny",
+   "look": "small cartoon white rabbit standing upright, long ears, pink nose, buck teeth"
+  },
+  {
+   "id": "kachua",
+   "name": "Kachhua Chacha",
+   "category": "animals",
+   "gender": "m",
+   "age": "old",
+   "voice": "hi-old-man",
+   "look": "slow wise cartoon tortoise standing upright, green skin, brown shell, tiny glasses"
+  },
+  {
+   "id": "kutta",
+   "name": "Moti Kutta",
+   "category": "animals",
+   "gender": "m",
+   "age": "adult",
+   "voice": "hi-man",
+   "look": "friendly cartoon brown dog standing on four legs, floppy ears, red collar"
+  },
+  {
+   "id": "billi",
+   "name": "Mini Billi",
+   "category": "animals",
+   "gender": "f",
+   "age": "child",
+   "voice": "hi-girl",
+   "look": "cute cartoon cat standing upright, white and orange fur, big green eyes, pink bow"
+  },
+  {
+   "id": "tota",
+   "name": "Mitthu Tota",
+   "category": "birds",
+   "gender": "m",
+   "age": "child",
+   "voice": "hi-tiny",
+   "look": "bright green cartoon parrot, red curved beak, standing on its feet"
+  },
+  {
+   "id": "kauwa",
+   "name": "Kalu Kauwa",
+   "category": "birds",
+   "gender": "m",
+   "age": "adult",
+   "voice": "hi-comic",
+   "look": "clever cartoon black crow standing, shiny black feathers, grey beak"
+  },
+  {
+   "id": "chidiya",
+   "name": "Chuski Chidiya",
+   "category": "birds",
+   "gender": "f",
+   "age": "child",
+   "voice": "hi-tiny",
+   "look": "tiny brown cartoon sparrow standing, round body, small beak"
+  },
+  {
+   "id": "mor",
+   "name": "Mor Raja",
+   "category": "birds",
+   "gender": "m",
+   "age": "adult",
+   "voice": "hi-man",
+   "look": "proud cartoon peacock standing, blue neck, long green and gold tail feathers"
+  },
+  {
+   "id": "ullu",
+   "name": "Ullu Baba",
+   "category": "birds",
+   "gender": "m",
+   "age": "old",
+   "voice": "hi-old-man",
+   "look": "wise cartoon owl standing, brown feathers, big round yellow eyes, small glasses"
+  },
+  {
+   "id": "bhoot",
+   "name": "Bhootni",
+   "category": "horror",
+   "gender": "f",
+   "age": "adult",
+   "voice": "hi-villain",
+   "look": "spooky cartoon ghost woman (not gory), pale blue skin, long messy black hair, torn white saree, floating"
+  },
+  {
+   "id": "chudail",
+   "name": "Chudail",
+   "category": "horror",
+   "gender": "f",
+   "age": "old",
+   "voice": "hi-villain",
+   "look": "scary cartoon witch (kid-safe), green skin, long nose, wild white hair, ragged black clothes"
+  },
+  {
+   "id": "kankal",
+   "name": "Kankal",
+   "category": "horror",
+   "gender": "m",
+   "age": "adult",
+   "voice": "hi-villain",
+   "look": "funny-scary cartoon skeleton standing, white bones, big grin"
+  },
+  {
+   "id": "tantrik",
+   "name": "Tantrik Baba",
+   "category": "horror",
+   "gender": "m",
+   "age": "old",
+   "voice": "hi-villain",
+   "look": "mysterious Indian tantrik, long black beard, black robe, red tilak, skull necklace (cartoon, not gory)"
+  }
+ ]
+}
