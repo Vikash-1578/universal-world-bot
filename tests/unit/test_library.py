@@ -244,7 +244,7 @@ class GroundAndLanguageTests(TempDirCase):
         self.assertGreater(cut.width, 250)  # disc is part of the cut-out
         clean = imaging.remove_ground(cut)
         self.assertLess(clean.width, 180)  # only the figure is left
-        px = clean.convert("RGB").getpixel((clean.width // 2, clean.height - 2))
-        self.assertFalse(px[1] > px[0] + 18)  # bottom is shoes/legs, not grass
+        green = [p for p in clean.getdata() if p[3] > 100 and p[1] > p[0] + 18 and p[1] > p[2] + 8]
+        self.assertEqual(green, [])  # no visible grass left
         self.assertFalse(is_english("लोमड़ी"))
         self.assertTrue(is_english("A cute orange cartoon fox"))
