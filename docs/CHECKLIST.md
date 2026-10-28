@@ -46,8 +46,8 @@ they prove our own logic, not that Telegram/AI/Blender behave the same way on th
 | Voice → text (Groq Whisper, only with Cloud AI ON) | 🟡 | code done; **not tested with real Groq**; local Whisper = Milestone 9 |
 | Script versions, approve / reject, never overwrite approved | ✅ | |
 | Deterministic scene breakdown (no AI needed), Hindi + English | ✅ | |
-| AI script writing / revision (job) | 🟡 | logic tested with a fake AI; **not yet tested with a real model** |
-| LLM adapter: local Ollama first, cloud only after opt-in | ✅ | tested with a fake local server; **real Ollama/Groq not yet tested** |
+| AI script writing / revision (job) | ✅ / 🟡 | worked with real Ollama qwen3:8b on owner's laptop (2026-10-28); Hindi quality is basic for an 8B model |
+| LLM adapter: local Ollama first, cloud only after opt-in | ✅ | real Ollama verified on laptop; real Groq/Gemini not yet tested |
 | Storyboard draft (rules) + AI Director suggestions (validated) | ✅ / 🟡 | rules tested; AI part tested with fake AI only |
 | Scene edit, reorder, duration, shot/transition, regenerate | ✅ | regenerate needs real AI (🟡) |
 | Storyboard approval gate; changes after approval need re-approval | ✅ | |
