@@ -10,6 +10,10 @@ CRITICAL = {"Python", "FFmpeg", "Database", "Config"}
 
 
 def main() -> int:
+    try:
+        sys.stdout.reconfigure(errors="replace")  # Windows consoles without UTF-8
+    except (AttributeError, ValueError):
+        pass
     s = load_settings()
     checks = run_all(s)
     print(summary(checks))
