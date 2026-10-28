@@ -97,3 +97,51 @@ class LibraryFlowTests(TempDirCase):
         from app.telegram.handlers.library import missing_images
 
         self.assertEqual(missing_images(self.hub, pid), {})
+
+    async def test_bulk_template_images_resume_and_limit(self):
+        """Bulk AI pictures for ready templates. Image AI is a TEST DOUBLE: works 3 times, then says 'daily limit'."""
+        from app.characters import bulk
+        from app.core.errors import ProviderUnavailable
+        from tests.unit.test_library import background, figure_on_green
+
+        ids = bulk.template_ids("featured")
+        self.assertEqual(len(ids), 48 + 97)
+        calls = {"n": 0}
+
+        class FakeImages:
+            last_provider = "fake"
+
+            async def available(self):
+                return True
+
+            async def generate(self, prompt, width=0, height=0, **kw):
+                calls["n"] += 1
+                if calls["n"] > 3:
+                    raise ProviderUnavailable("Cloudflare key / daily limit problem.")
+                return background() if width > height else figure_on_green()
+
+        self.hub.imagegen = FakeImages()
+        await feed(self.bot, self.dp, cb_update(make("lb", "bulk")))
+        self.assertIn("0/145", texts(self.sess)[-1])
+        await feed(self.bot, self.dp, cb_update(make("lb", "bulkok")))
+        await self.hub.jobs.start()
+        await self.hub.jobs.wait_idle(timeout=60)
+        job = [j for j in self.hub.jobs.list_jobs(limit=20) if j["job_type"] == bulk.JOB][0]
+        out = self.hub.jobs.get_job(job["id"])
+        self.assertEqual(out["status"], "completed")
+        self.assertIn('"made": 3', out["output_manifest"])
+        self.assertIn("limit", out["output_manifest"])
+        self.assertEqual(bulk.progress(self.hub)[0], 3)
+        # next day: limit gone -> a new run continues, the 3 done ones are not made again
+        calls["n"] = -1000
+        before = calls["n"]
+        await feed(self.bot, self.dp, cb_update(make("lb", "bulkok"), message_id=77))
+        await self.hub.jobs.wait_idle(timeout=120)
+        self.assertEqual(bulk.progress(self.hub), (145, 145))
+        self.assertEqual(calls["n"] - before, 145 - 3)
+        # casting from a template reuses the item that already has the picture (no empty copy)
+        first = self.hub.library.find_by_template(ids[0])
+        n_items = self.hub.db.one("SELECT COUNT(*) AS n FROM library_items")["n"]
+        await feed(self.bot, self.dp, cb_update(make("lb", "use", ids[0])))
+        self.assertEqual(self.hub.db.one("SELECT COUNT(*) AS n FROM library_items")["n"], n_items)
+        self.assertTrue(bulk.has_picture(first))
