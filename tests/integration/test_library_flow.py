@@ -61,3 +61,39 @@ class LibraryFlowTests(TempDirCase):
         self.assertEqual(self.hub.library.casting(pid)["Jungle ka race track"]["kind"], "environment")
         await feed(self.bot, self.dp, cb_update(make("lb", "unassign", pid, 1)))
         self.assertNotIn("Sher", self.hub.library.casting(pid))
+
+    async def test_casting_empty_items_warn_and_ai_all(self):
+        """Items made from a script name have no picture: casting must say so, and one button makes them all.
+        The image AI here is a TEST DOUBLE (returns a drawn figure) — it proves the flow, not image quality."""
+        from tests.unit.test_library import background, figure_on_green
+
+        pid = self.hub.projects.create_project("Race", "2d")["id"]
+        v = self.hub.scripts.create_version(pid, SCRIPT)
+        self.hub.scripts.approve(v["id"])
+        await feed(self.bot, self.dp, cb_update(make("lb", "assignn", pid, 0)))  # Khargosh -> empty item
+        await feed(self.bot, self.dp, cb_update(make("lb", "assignn", pid, 3)))  # place -> empty environment
+        t = texts(self.sess)[-1]
+        self.assertIn("image nahi", t)
+        self.assertNotIn("✅", t.split("Khargosh")[1].split("\n")[0])
+        self.assertIn(make("lb", "aiall", pid), buttons(self.sess))
+
+        class FakeImages:
+            last_provider = "fake"
+
+            async def available(self):
+                return True
+
+            async def generate(self, prompt, width=0, height=0, progress=None, **kw):
+                return background() if width > height else figure_on_green()
+
+        self.hub.imagegen = FakeImages()
+        await feed(self.bot, self.dp, cb_update(make("lb", "aiall", pid)))
+        self.assertIn("2 AI image jobs", texts(self.sess)[-1])
+        await self.hub.jobs.start()
+        await self.hub.jobs.wait_idle(timeout=60)
+        cast = self.hub.library.casting(pid)
+        self.assertEqual(cast["Khargosh"]["version"], 2)  # re-cast to the new picture automatically
+        self.assertFalse(cast["Khargosh"]["outdated"])
+        from app.telegram.handlers.library import missing_images
+
+        self.assertEqual(missing_images(self.hub, pid), {})

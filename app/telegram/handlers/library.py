@@ -162,13 +162,36 @@ async def cast_screen(target, hub, pid: int) -> None:
         return
     lines = [f"🎭 Casting — {p['name']}", "Script ke har character / jagah ko library ka item do:"]
     kb = []
+    no_img = missing_images(hub, pid, roles)
     for i, (k, role) in enumerate(roles):
         c = cast.get(role)
-        mark = f"✅ {c['name']} v{c['version']}" + (" (naya version hai)" if c and c["outdated"] else "") if c else "❌ khali"
+        if not c:
+            mark = "❌ khali"
+        elif role in no_img:
+            mark = f"⚠️ {c['name']} — image nahi (video me putla dikhega)"
+        else:
+            mark = f"✅ {c['name']} v{c['version']}" + (" (naya version hai)" if c["outdated"] else "")
         lines.append(f"{'🧍' if k == 'c' else '🏞'} {role}: {mark}")
         kb.append([B(text=f"{'🧍' if k == 'c' else '🏞'} {role[:24]}", callback_data=make("lb", "role", pid, i))])
+    if no_img:
+        lines.append(f"\n⚠️ {len(no_img)} item ki image nahi hai. Naam se item banana = sirf khaali card; image alag se banti hai.")
+        kb.append([B(text=f"🎨 In sabki AI image banao ({len(no_img)})", callback_data=make("lb", "aiall", pid))])
     kb.append(nav(back=f"p|open|{pid}", refresh=f"lb|cast|{pid}"))
     await show(target, "\n".join(lines), KB(inline_keyboard=kb))
+
+
+def missing_images(hub, pid: int, roles: list[tuple[str, str]] | None = None) -> dict[str, dict]:
+    """role -> casting row, for cast roles whose pinned version has no main/background picture."""
+    out = {}
+    cast = hub.library.casting(pid)
+    for _k, role in roles if roles is not None else project_roles(hub, pid):
+        c = cast.get(role)
+        if not c:
+            continue
+        it = hub.library.get(c["item_id"], c["version"])
+        if ("background" if it["kind"] == "environment" else "main") not in it["files"]:
+            out[role] = c
+    return out
 
 
 async def role_screen(target, hub, pid: int, idx: int) -> None:
@@ -280,6 +303,31 @@ async def cb_library(cb: CallbackQuery, hub) -> None:
             conv.set(uid, "lib_desc", item_id=iid)
             await answer(cb)
             await show(cb, "✏️ Description likho (kaisa dikhta hai, kapde, rang, swabhav):", KB(inline_keyboard=[nav(back=f"lb|open|{iid}", cancel=True)]))
+        elif a == "aiall":
+            pid = c.int(0)
+            todo = missing_images(hub, pid)
+            if not todo:
+                await answer(cb, "Sabki image pehle se hai")
+                await cast_screen(cb, hub, pid)
+                return
+            if not await hub.imagegen.available():
+                await answer(cb)
+                await show(cb, "🎨 Image AI abhi chalu nahi hai.\n\n• keys.txt me CF_ACCOUNT_ID + CF_API_TOKEN, phir ⚙️ Settings → Cloud AI ON\n"
+                               "• Ya laptop par ComfyUI\n• Ya har item me 🖼 Image bhejo", KB(inline_keyboard=[nav(back=f"lb|cast|{pid}")]))
+                return
+            m = _m(cb)
+            ids = []
+            for role, row in todo.items():
+                job = hub.jobs.submit_job("library_ai_image", None, {"item_id": row["item_id"], "recast": {"project_id": pid, "role": role}}, 4,
+                                          idempotency_key=f"aiall:{pid}:{row['item_id']}:{m.message_id if m else 0}",
+                                          chat_id=m.chat.id if m else None, title=f"AI image: {role[:30]}")
+                ids.append(job["id"])
+            hub.audit.record("cast_ai_images", "queued", "project", pid, n=len(ids))
+            await answer(cb, f"{len(ids)} AI image jobs line me")
+            await show(cb, f"🎨 {len(ids)} AI image jobs line me lag gaye (#{ids[0]}–#{ids[-1]}).\n"
+                           "Ek-ek karke banenge (har ek ~20-60 sec). Har image banne ke baad casting apne aap naye version par chali jayegi.\n"
+                           "Ho jaane par 🔄 Refresh dabao, phir 🎬 Animation se video banao.",
+                       KB(inline_keyboard=[[B(text="⏳ Job Queue", callback_data=make("j", "list", 0))], nav(back=f"lb|cast|{pid}", refresh=f"lb|cast|{pid}")]))
         elif a in ("aidesc", "aiimg"):
             iid = c.arg(0)
             lib.get(iid)

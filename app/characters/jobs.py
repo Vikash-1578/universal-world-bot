@@ -13,6 +13,7 @@ Name: {name}
 Notes: {notes}
 Style: {style}
 Return ONE English paragraph (max 60 words): body shape, colours, clothes/props, face, distinctive details.
+The name may be in Hindi: understand it, but write the description in English.
 No story, no background description{bg}."""
 
 
@@ -34,6 +35,18 @@ def register(hub: "Hub") -> None:
 
     async def ai_image(ctx: JobContext) -> dict:
         iid = ctx.inputs["item_id"]
+        it0 = hub.library.get(iid)
+        if not (it0["profile"].get("look") or it0["profile"].get("description")):
+            # no description yet (e.g. made from a Hindi script name): ask the AI for an English look first, if it is on
+            async with ctx.stage("auto_describe", ctx.inputs) as dst:
+                if not dst.skipped:
+                    dst.result = {"done": False}
+                    try:
+                        if await hub.llm.available():
+                            await describe(ctx)
+                            dst.result = {"done": True}
+                    except Exception:  # noqa: BLE001  - image can still be made from the name
+                        pass
         async with ctx.stage("generate", ctx.inputs) as st:
             if not st.skipped:
                 from app.models.imagegen import BACKGROUND_SUFFIX, CHARACTER_SUFFIX
@@ -52,6 +65,9 @@ def register(hub: "Hub") -> None:
                 data = await hub.imagegen.generate(prompt, width=w, height=h, progress=tick)
                 new, qc = hub.library.add_image(iid, "background" if env else "main", data, source=hub.imagegen.last_provider or "ai")
                 st.result = {"version": new["version"], "qc_ok": bool(qc and qc.ok)}
+                rc = ctx.inputs.get("recast")
+                if rc:  # owner asked from the project's Casting screen: move that role to the new picture
+                    hub.library.cast(int(rc["project_id"]), rc["role"], iid)
             return dict(st.result)
 
     hub.jobs.register("library_describe", describe, max_attempts=2, title="AI description")
