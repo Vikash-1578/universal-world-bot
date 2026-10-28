@@ -65,7 +65,19 @@ they prove our own logic, not that Telegram/AI/Blender behave the same way on th
 | AI description (Ollama) job | 🟡 | uses the same verified Ollama path; this prompt not yet tried on the laptop |
 | AI image job: local ComfyUI or opt-in Cloudflare | ✅ / 🟡 | Cloudflare verified on laptop 2026-10-28 (lion character + auto cut-out); ComfyUI not installed yet |
 | Telegram: Character / Environment Studio, Templates, Casting | ✅ | fake Telegram session |
-## Milestone 6 — Working 2D Pipeline ⬜
+## Milestone 6 — Working 2D Pipeline 🟡 (built + tested in sandbox; laptop test pending)
+| Item | Status | Notes |
+|---|---|---|
+| Plan from storyboard + casting (pinned versions), deterministic | ✅ | tests/integration/test_animation_2d.py |
+| Missing casting -> clear warning + stand-in figure / plain sky | ✅ | |
+| Puppet renderer (ported v1): walk-in with leg swing, talk bounce, emotions/poses if images exist, camera moves, mood grading, fades | ✅ | real Pillow + FFmpeg render in tests |
+| Lip-sync (mouth) | 🟡 | only when the character has an `expr:talk` image; driven by estimated timing until M8 voices |
+| Render job: one checkpoint per scene, resume reuses finished scenes (sha256 checked) | ✅ | retry test proves scene file not re-rendered |
+| Join + validation (size, fps, audio stream, duration) + export to project/exports | ✅ | |
+| Final needs approved storyboard (gate); preview works on draft | ✅ | |
+| Telegram: Animation / Export screens, scene photo, auto-send video (<50 MB) | ✅ | fake Telegram session |
+| Audio | ⛔ | silent track only — voices, music, subtitles are Milestone 8 |
+| Verified on owner's laptop | ⬜ | |
 ## Milestone 7 — Working 3D Pipeline (Blender) ⬜
 ## Milestone 8 — Audio and Subtitles ⬜
 ## Milestone 9 — Model Management ⬜
