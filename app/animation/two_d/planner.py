@@ -25,9 +25,9 @@ QUALITY = {"preview": {"short": 360, "fps": 12, "crf": 28}, "final": {"short": 1
 
 EMOTION_WORDS = {
     "happy": ("khush", "happy", "hans", "muskura", "excited", "खुश", "हँस", "हंस", "मुस्कु", "उत्साह"),
-    "sad": ("dukh", "sad", "udaas", "ro ", "rote", "rona", "दुख", "उदास", "रो"),
-    "angry": ("gussa", "angry", "naraz", "गुस्स", "नाराज"),
-    "scared": ("dar", "scared", "ghabra", "डर", "घबरा"),
+    "sad": ("dukh", "sad", "udaas", " ro ", " rote", " rona", "दुख", "उदास", " रो"),
+    "angry": ("guss", "angry", "naraz", "गुस्स", "नाराज"),
+    "scared": (" dar", "darr", "scared", "ghabra", "डर", "घबरा"),
     "surprised": ("hairan", "surprise", "chauk", "shock", "हैरान", "चौंक"),
 }
 ACTION_WORDS = {
