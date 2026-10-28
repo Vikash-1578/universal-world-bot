@@ -84,15 +84,6 @@ class LibraryService:
                     "time_of_day": "night" if "raat" in template_id else "day"}
         return self.create_item(kind, t["name"], prof, category=t.get("category", ""), template_id=template_id, note="Template se bana")
 
-    def find_by_template(self, template_id: str) -> dict | None:
-        """The library item made from this template — the one with a picture first, else the newest."""
-        rows = self.db.all("SELECT id FROM library_items WHERE template_id = ? ORDER BY updated_at DESC", (template_id,))
-        items = [self.get(r["id"]) for r in rows]
-        for it in items:
-            if ("background" if it["kind"] == "environment" else "main") in it["files"]:
-                return it
-        return items[0] if items else None
-
     def _clean_profile(self, kind: str, prof: dict) -> dict:
         out: dict[str, Any] = {}
         for k, v in prof.items():

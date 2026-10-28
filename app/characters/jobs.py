@@ -70,8 +70,5 @@ def register(hub: "Hub") -> None:
                     hub.library.cast(int(rc["project_id"]), rc["role"], iid)
             return dict(st.result)
 
-    from app.characters.bulk import register as reg_bulk
-
-    reg_bulk(hub)
     hub.jobs.register("library_describe", describe, max_attempts=2, title="AI description")
     hub.jobs.register("library_ai_image", ai_image, heavy=True, max_attempts=2, title="AI image")

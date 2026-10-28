@@ -47,8 +47,6 @@ async def home(target, hub, k: str) -> None:
     if n_t:
         rows.append([B(text=f"📚 Templates ({n_t})", callback_data=make("lb", "tcat", k)),
                      B(text="🔍 Dhoondho", callback_data=make("lb", "find", k))])
-    if k in TKIND:
-        rows.append([B(text="🎨 Ready templates ki AI image banao", callback_data=make("lb", "bulk"))])
     rows.append([B(text="📦 Package import", callback_data=make("lb", "imp", k))])
     if k == "c":
         rows.append([B(text="🧸 Props", callback_data=make("lb", "home", "p"))])
@@ -267,7 +265,7 @@ async def cb_library(cb: CallbackQuery, hub) -> None:
                        KB(inline_keyboard=[[B(text="✅ Isse library me banao", callback_data=make("lb", "use", t["id"]))],
                                            nav(back=f"lb|tl|{'e' if t['kind'] == 'place' else 'c'}|{t['category'][:20]}|0")]))
         elif a == "use":
-            it = lib.find_by_template(c.arg(0)) or lib.from_template(c.arg(0))
+            it = lib.from_template(c.arg(0))
             hub.audit.record("library_create", "ok", "item", it["id"], template=c.arg(0))
             await answer(cb, "Library me ban gaya")
             await item_card(cb, hub, it["id"])
@@ -305,39 +303,6 @@ async def cb_library(cb: CallbackQuery, hub) -> None:
             conv.set(uid, "lib_desc", item_id=iid)
             await answer(cb)
             await show(cb, "✏️ Description likho (kaisa dikhta hai, kapde, rang, swabhav):", KB(inline_keyboard=[nav(back=f"lb|open|{iid}", cancel=True)]))
-        elif a in ("bulk", "bulkok"):
-            from app.characters import bulk
-
-            done, total = bulk.progress(hub, "featured")
-            if a == "bulk":
-                await answer(cb)
-                running = [j for j in hub.jobs.list_jobs(active_only=True, limit=50) if j["job_type"] == bulk.JOB]
-                text = (f"🎨 Ready templates ki AI image\n\n{bulk.SETS['featured']} = {total}\nImage ban chuki: {done}/{total}\n\n"
-                        "Ek-ek karke banegi (har ek ~10-40 sec, poora ~1-1.5 ghanta). Laptop aur bot chalu rakhna.\n"
-                        "Cloud AI (Cloudflare) ki free daily limit khatam hui to job ruk jayega — agle din dobara dabana, wahi se aage.\n"
-                        "Jo pehle se bani hai wo dobara nahi banegi. QC tum baad me dekh ke approve karna.")
-                if running:
-                    text += f"\n\n⚙️ Ye job abhi chal raha hai: #{running[0]['id']}"
-                    kb = [[B(text=f"⚙️ Job #{running[0]['id']} dekho", callback_data=make("j", "open", running[0]["id"]))]]
-                elif done >= total:
-                    kb = []
-                    text += "\n\n✅ Sab ban chuki hain."
-                else:
-                    kb = [[B(text=f"▶ Shuru karo ({total - done} baaki)", callback_data=make("lb", "bulkok"))]]
-                await show(cb, text, KB(inline_keyboard=kb + [nav(back="lb|home|c")]))
-                return
-            if not await hub.imagegen.available():
-                await answer(cb, "Image AI band hai: ⚙️ Settings me Cloud AI ON karo (keys.txt me Cloudflare key chahiye)", alert=True)
-                return
-            m = _m(cb)
-            job = hub.jobs.submit_job(bulk.JOB, None, {"set": "featured"}, 6, idempotency_key=f"bulk:{m.message_id if m else 0}",
-                                      chat_id=m.chat.id if m else None)
-            hub.audit.record("library_bulk_ai", "queued", "job", job["id"])
-            await answer(cb, "Job line me laga")
-            if m:
-                from app.telegram.handlers.jobs import send_card
-
-                await send_card(m, hub, job["id"])
         elif a == "aiall":
             pid = c.int(0)
             todo = missing_images(hub, pid)
@@ -446,8 +411,7 @@ async def cb_library(cb: CallbackQuery, hub) -> None:
                 if a == "assign":
                     iid = c.arg(2)
                 elif a == "assignt":
-                    old = lib.find_by_template(c.arg(2))  # reuse the ready item (with its AI picture) instead of a copy
-                    iid = old["id"] if old else lib.from_template(c.arg(2))["id"]
+                    iid = lib.from_template(c.arg(2))["id"]
                 else:
                     iid = lib.create_item(K[k], role)["id"]
                 lib.cast(pid, role, iid)
