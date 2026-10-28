@@ -248,3 +248,31 @@ class GroundAndLanguageTests(TempDirCase):
         self.assertEqual(green, [])  # no visible grass left
         self.assertFalse(is_english("लोमड़ी"))
         self.assertTrue(is_english("A cute orange cartoon fox"))
+
+
+class QuotaTests(TempDirCase):
+    """Cloudflare is a fake HTTP server here (test double) that answers 'daily free allocation used up'."""
+
+    async def test_daily_limit_is_not_retried(self):
+        from app.models.imagegen import CloudflareImages, QuotaExceeded
+
+        calls = []
+
+        async def run(req):
+            calls.append(1)
+            return web.json_response({"errors": [{"message": "AiError: you have used up your daily free allocation of 10,000 neurons"}]},
+                                     status=429)
+
+        app = web.Application()
+        app.router.add_post("/cf/{acc}/ai/run/{m:.*}", run)
+        srv = TestServer(app)
+        await srv.start_server()
+        try:
+            cf = CloudflareImages("acc", "tok", base=f"http://{srv.host}:{srv.port}/cf")
+            with self.assertRaises(QuotaExceeded) as cm:
+                await cf.generate("x")
+            self.assertFalse(cm.exception.recoverable)
+            self.assertIn("5:30", cm.exception.user_message)
+            self.assertEqual(len(calls), 1)  # stops at the first 'daily limit' answer
+        finally:
+            await srv.close()

@@ -27,6 +27,12 @@ class ImageGenUnavailable(HubError):
     code = "imagegen_unavailable"
 
 
+class QuotaExceeded(ImageGenUnavailable):
+    """Daily free limit used up — retrying today is pointless, so the job fails at once with a clear message."""
+    code = "quota_exceeded"
+    recoverable = False
+
+
 class ComfyUI:
     def __init__(self, url: str = COMFY, checkpoint: str = "", steps: int = 24, cfg: float = 6.5, timeout: float = 600) -> None:
         self.url = url.rstrip("/")
@@ -168,6 +174,10 @@ class CloudflareImages:
                             return data
                         except ProviderUnavailable as e:
                             errors.append(f"{model.rsplit('/', 1)[-1]}: {e.detail}"[:160])
+                            if "http 429" in (e.detail or "") and ("daily" in (e.detail or "") or "neurons" in (e.detail or "")):
+                                raise QuotaExceeded("Cloudflare ki aaj ki free limit (10,000 neurons) khatam ho gayi. "
+                                                    "Ye roz subah 5:30 baje (IST) reset hoti hai. Unlimited ke liye laptop par ComfyUI chalao, "
+                                                    "ya 🖼 apni image bhejo.", detail=errors[-1]) from e
                             if any(f"http {c}" in (e.detail or "") for c in (401, 403, 429)):
                                 raise ProviderUnavailable("Cloudflare key / daily limit problem.", detail="; ".join(errors)) from e
                             if "http 400" not in (e.detail or ""):
