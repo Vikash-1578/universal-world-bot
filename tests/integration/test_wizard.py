@@ -91,3 +91,44 @@ class WizardTests(TempDirCase):
         await self.hub.jobs.wait_idle(timeout=30)
         self.assertIn("STORY:", self.hub.llm.prompts[0])
         self.assertIn("Step 1: Kahani", texts(self.sess)[-1])
+
+    async def test_choose_each_role_library_template_ai(self):
+        from app.characters import templates
+        from app.telegram.handlers.library import project_roles
+
+        self.assertTrue(templates.search("चिंटू खरगोश", "actor"))  # Hindi story words find ready templates
+        self.assertTrue(templates.search("नदी किनारा", "place"))
+        pid = self.hub.projects.create_project("Race", "2d")["id"]
+        v = self.hub.scripts.create_version(pid, SCRIPT)
+        await feed(self.bot, self.dp, cb_update(make("w", "okstory", pid, v["id"])))
+        roles = project_roles(self.hub, pid)
+        i_k = next(i for i, (_k, r) in enumerate(roles) if r == "Khargosh")
+        self.assertIn(make("w", "role", pid, i_k), buttons(self.sess))  # every role has its own ✏️ button
+        await feed(self.bot, self.dp, cb_update(make("w", "role", pid, i_k)))
+        self.assertTrue({make("w", "lib", pid, i_k, 0), make("w", "tpl", pid, i_k), make("w", "ai1", pid, i_k),
+                         make("w", "own", pid, i_k)} <= set(buttons(self.sess)))
+        # 1) ready template
+        await feed(self.bot, self.dp, cb_update(make("w", "tpl", pid, i_k)))
+        tp = [b for b in buttons(self.sess) if b.startswith("v1|w|tpick|")]
+        self.assertTrue(tp)
+        await feed(self.bot, self.dp, cb_update(tp[0]))
+        tid = tp[0].split("|")[-1]
+        cast = self.hub.library.casting(pid)["Khargosh"]
+        self.assertEqual(self.hub.library.get(cast["item_id"])["template_id"], tid)
+        self.assertIn(make("w", "ai1", pid, i_k), buttons(self.sess))  # template has no picture yet -> offers AI
+        # 2) own library item that already has a picture
+        own = self.hub.library.create_item("character", "Golu")
+        self.hub.library.add_image(own["id"], "main", figure_on_green())
+        await feed(self.bot, self.dp, cb_update(make("w", "lib", pid, i_k, 0)))
+        self.assertIn(make("w", "pick", pid, i_k, own["id"]), buttons(self.sess))
+        await feed(self.bot, self.dp, cb_update(make("w", "pick", pid, i_k, own["id"])))
+        self.assertEqual(self.hub.library.casting(pid)["Khargosh"]["item_id"], own["id"])
+        self.assertIn("✅ 🧍 Khargosh → Golu", texts(self.sess)[-1])
+        # 3) AI for one role only
+        await feed(self.bot, self.dp, cb_update(make("w", "ai1", pid, i_k)))
+        jobs = [j for j in self.hub.jobs.list_jobs(limit=50) if j["job_type"] == "library_ai_image"]
+        self.assertEqual(len(jobs), 1)
+        # 4) own picture: bot waits for an image for this role (upload itself covered by library tests)
+        await feed(self.bot, self.dp, cb_update(make("w", "own", pid, i_k)))
+        st = self.hub.extra["conv"].get(1001)
+        self.assertEqual((st["step"], st["data"]["recast"]["role"]), ("lib_img", "Khargosh"))

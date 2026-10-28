@@ -128,15 +128,23 @@ async def chars(target, hub, pid: int) -> None:
     cast = hub.library.casting(pid)
     no_img = missing_images(hub, pid, roles)
     lines = [f"🧍 Step 2: Characters & jagah — {hub.projects.get_project(pid)['name']}", ""]
-    for k, role in roles:
+    kb: list[list[B]] = []
+    row: list[B] = []
+    for i, (k, role) in enumerate(roles):
         c = cast.get(role)
         ok = c and role not in no_img
         lines.append(f"{'✅' if ok else '⚠️'} {'🧍' if k == 'c' else '🏞'} {role} → {c['name'] if c else '-'}{'' if ok else ' (image nahi)'}")
-    kb = [[B(text="🖼 Sabki photo dekho", callback_data=make("w", "photos", pid))]]
+        row.append(B(text=f"✏️ {role[:16]}", callback_data=make("w", "role", pid, i)))
+        if len(row) == 2:
+            kb.append(row)
+            row = []
+    if row:
+        kb.append(row)
+    lines += ["", "✏️ dabao: library / ready template / AI / apni image — har role ke liye khud chuno."]
+    kb.append([B(text="🖼 Sabki photo dekho", callback_data=make("w", "photos", pid))])
     if no_img:
         lines += ["", f"{len(no_img)} ki image nahi hai. Bina image video nahi banegi (putla nahi lagayenge)."]
         kb.append([B(text=f"🎨 In {len(no_img)} ki AI image banao", callback_data=make("w", "aiall", pid))])
-    kb.append([B(text="🔄 Kisi ko badlo / apni image do", callback_data=make("lb", "cast", pid))])
     if not no_img:
         kb.append([B(text="🔁 Image galat hai? Sabki dobara banao", callback_data=make("w", "redo", pid))])
         kb.append([B(text="✅ Sab theek, aage ▶", callback_data=make("w", "voice", pid))])
@@ -147,6 +155,74 @@ async def chars(target, hub, pid: int) -> None:
 def speakers(hub, pid: int) -> list[str]:
     s = hub.scripts.approved(pid) or hub.scripts.latest(pid)
     return parser.parse(s["content"]).characters if s else []
+
+
+# ------------------------------------------------------------------ one role: choose who plays it
+async def role_menu(target, hub, pid: int, idx: int) -> None:
+    from app.telegram.handlers.library import K, project_roles
+
+    roles = project_roles(hub, pid)
+    if idx >= len(roles):
+        await chars(target, hub, pid)
+        return
+    k, role = roles[idx]
+    kind = K[k]
+    c = hub.library.casting(pid).get(role)
+    it = hub.library.get(c["item_id"], c["version"]) if c else None
+    has = bool(it and ("background" if kind == "environment" else "main") in it["files"])
+    text = (f"{'🧍' if k == 'c' else '🏞'} {role}\nAbhi: {it['name'] if it else '-'} {'✅ image hai' if has else '⚠️ image nahi'}\n\n"
+            "Kaise chunna hai?")
+    kb = [[B(text="📂 Meri library se (image wale)", callback_data=make("w", "lib", pid, idx, 0))],
+          [B(text="📚 Ready template se", callback_data=make("w", "tpl", pid, idx))],
+          [B(text="🎨 AI se image banao", callback_data=make("w", "ai1", pid, idx))],
+          [B(text="🖼 Apni image bhejo", callback_data=make("w", "own", pid, idx))]]
+    if has:
+        kb.append([B(text="👁 Image dekho", callback_data=make("lb", "see", it["id"]))])
+    kb.append(nav(back=f"w|chars|{pid}"))
+    await show(target, text, KB(inline_keyboard=kb))
+
+
+def _role(hub, pid: int, idx: int) -> tuple[str, str, str]:
+    from app.telegram.handlers.library import K, project_roles
+
+    roles = project_roles(hub, pid)
+    if idx >= len(roles):
+        raise ValueError("stale")
+    k, role = roles[idx]
+    return k, role, K[k]
+
+
+async def _lib_list(target, hub, pid: int, idx: int, page: int) -> None:
+    _k, role, kind = _role(hub, pid, idx)
+    main = "background" if kind == "environment" else "main"
+    rows = hub.db.all("SELECT id FROM library_items WHERE kind = ? ORDER BY updated_at DESC", (kind,))
+    items = [it for it in (hub.library.get(r["id"]) for r in rows) if main in it["files"]]
+    per = 6
+    part = items[page * per:(page + 1) * per]
+    kb = [[B(text=f"{it['name'][:28]}", callback_data=make("w", "pick", pid, idx, it["id"]))] for it in part]
+    nav_row = []
+    if page > 0:
+        nav_row.append(B(text="◀", callback_data=make("w", "lib", pid, idx, page - 1)))
+    if (page + 1) * per < len(items):
+        nav_row.append(B(text="▶", callback_data=make("w", "lib", pid, idx, page + 1)))
+    if nav_row:
+        kb.append(nav_row)
+    kb.append(nav(back=f"w|role|{pid}|{idx}"))
+    await show(target, f"📂 '{role}' ke liye library se chuno ({len(items)} image wale)" +
+               ("" if items else "\n\nAbhi library me image wala koi item nahi. 📚 Template ya 🎨 AI try karo."), KB(inline_keyboard=kb))
+
+
+async def _tpl_list(target, hub, pid: int, idx: int, query: str = "") -> None:
+    from app.characters import templates
+
+    _k, role, kind = _role(hub, pid, idx)
+    tkind = "place" if kind == "environment" else "actor"
+    found = templates.search(query or role, tkind, limit=8)
+    kb = [[B(text=f"{t['name'][:30]}", callback_data=make("w", "tpick", pid, idx, t["id"]))] for t in found]
+    kb.append([B(text="🔍 Naam likh ke dhoondho", callback_data=make("w", "tfind", pid, idx))])
+    kb.append(nav(back=f"w|role|{pid}|{idx}"))
+    await show(target, f"📚 '{query or role}' ke liye ready templates ({len(found)}):" +
+               ("" if found else "\nKuch nahi mila — 🔍 angrezi/hinglish naam se dhoondho (jaise rabbit, khargosh)."), KB(inline_keyboard=kb))
 
 
 async def voices(target, hub, pid: int) -> None:
@@ -428,6 +504,79 @@ async def cb_wizard(cb: CallbackQuery, hub) -> None:
         elif a == "voice":
             await answer(cb)
             await voices(cb, hub, c.int(0))
+        elif a == "role":
+            await answer(cb)
+            await role_menu(cb, hub, c.int(0), c.int(1))
+        elif a == "lib":
+            await answer(cb)
+            await _lib_list(cb, hub, c.int(0), c.int(1), c.int(2))
+        elif a == "pick":
+            pid, idx = c.int(0), c.int(1)
+            _k, role, kind = _role(hub, pid, idx)
+            it = hub.library.get(c.arg(2))
+            if it["kind"] != kind:
+                raise ValueError("kind")
+            hub.library.cast(pid, role, it["id"])
+            hub.audit.record("cast", "ok", "project", pid, role=role, item=it["id"], via="wizard")
+            await answer(cb, f"{role} → {it['name']}")
+            await chars(cb, hub, pid)
+        elif a == "tpl":
+            await answer(cb)
+            await _tpl_list(cb, hub, c.int(0), c.int(1))
+        elif a == "tfind":
+            pid, idx = c.int(0), c.int(1)
+            _role(hub, pid, idx)
+            conv.set(uid, "wz_tfind", project_id=pid, idx=idx)
+            await answer(cb)
+            await show(cb, "🔍 Naam likho (jaise: rabbit, khargosh, old man, jungle):", KB(inline_keyboard=[nav(back=f"w|tpl|{pid}|{idx}", cancel=True)]))
+        elif a == "tpick":
+            pid, idx = c.int(0), c.int(1)
+            _k, role, kind = _role(hub, pid, idx)
+            rows = hub.db.all("SELECT id FROM library_items WHERE template_id = ?", (c.arg(2),))
+            made = [hub.library.get(r["id"]) for r in rows]
+            main = "background" if kind == "environment" else "main"
+            it = next((m for m in made if main in m["files"]), None) or (made[0] if made else hub.library.from_template(c.arg(2)))
+            hub.library.cast(pid, role, it["id"])
+            hub.audit.record("cast", "ok", "project", pid, role=role, item=it["id"], via="wizard_template")
+            if main in it["files"]:
+                await answer(cb, f"{role} → {it['name']}")
+                await chars(cb, hub, pid)
+            else:
+                await answer(cb)
+                await show(cb, f"📚 {role} → {it['name']}\nIs template ki abhi image nahi hai. Template ka angrezi description AI ko diya jayega.",
+                           KB(inline_keyboard=[[B(text="🎨 Iski AI image banao", callback_data=make("w", "ai1", pid, idx))],
+                                               [B(text="🖼 Apni image bhejo", callback_data=make("w", "own", pid, idx))],
+                                               nav(back=f"w|chars|{pid}")]))
+        elif a == "ai1":
+            pid, idx = c.int(0), c.int(1)
+            k, role, kind = _role(hub, pid, idx)
+            if not await hub.imagegen.available():
+                await answer(cb, "Image AI band hai: ⚙️ Settings me Cloud AI ON karo (keys.txt me Cloudflare key)", alert=True)
+                return
+            cur = hub.library.casting(pid).get(role)
+            iid = cur["item_id"] if cur else hub.library.create_item(kind, role, {"story": role})["id"]
+            if not cur:
+                hub.library.cast(pid, role, iid)
+            m = _m(cb)
+            hub.jobs.submit_job("library_ai_image", None, {"item_id": iid, "recast": {"project_id": pid, "role": role}, "wizard": pid}, 4,
+                                idempotency_key=f"wz:img1:{pid}:{iid}:{m.message_id if m else 0}", chat_id=m.chat.id if m else None,
+                                title=f"AI image: {role[:30]}")
+            await answer(cb, "Image ban rahi hai")
+            await show(cb, f"🎨 '{role}' ki AI image ban rahi hai (~20-60 sec). Ban jaane par list khud aayegi.",
+                       KB(inline_keyboard=[nav(back=f"w|chars|{pid}", refresh=f"w|chars|{pid}")]))
+        elif a == "own":
+            pid, idx = c.int(0), c.int(1)
+            k, role, kind = _role(hub, pid, idx)
+            cur = hub.library.casting(pid).get(role)
+            iid = cur["item_id"] if cur else hub.library.create_item(kind, role)["id"]
+            if not cur:
+                hub.library.cast(pid, role, iid)
+            img_role = "background" if kind == "environment" else "main"
+            conv.set(uid, "lib_img", item_id=iid, role=img_role, recast={"project_id": pid, "role": role})
+            await answer(cb)
+            await show(cb, f"🖼 '{role}' ki image bhejo." + ("\nBackground: 16:9 photo/drawing." if kind == "environment" else
+                       "\nSaade (white/green) background wali drawing best hai — bot background hata dega. 'File' ki tarah bhejoge to quality achhi rahegi."),
+                       KB(inline_keyboard=[nav(back=f"w|role|{pid}|{idx}", cancel=True)]))
         elif a == "vstyle":
             from app.audio import tts as T
 
@@ -528,6 +677,10 @@ async def on_text(message: Message, hub, step: str, data: dict) -> bool:
             await message.answer("Kahani thodi aur lambi bhejo (kam se kam 2-3 line).", parse_mode=None)
             return True
         await _story_received(message, hub, text)
+        return True
+    if step == "wz_tfind":
+        hub.extra["conv"].clear(message.from_user.id if message.from_user else 0)
+        await _tpl_list(message, hub, int(data["project_id"]), int(data["idx"]), text[:40])
         return True
     if step == "wz_idea":
         await _ai_story(message, hub, message.from_user.id if message.from_user else 0, data, text[:500])

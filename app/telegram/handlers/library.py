@@ -479,7 +479,14 @@ async def on_media(message: Message, hub, step: str, data: dict) -> bool:
         if path:
             await message.answer_photo(BufferedInputFile(imaging.preview(imaging.open_image(path.read_bytes())), "preview.jpg"),
                                        caption=f"✅ {data['role']} save (v{it['version']})\n" + (qc.text() if qc else ""), parse_mode=None)
-        await item_card(message, hub, it["id"])
+        rc = data.get("recast")
+        if rc:  # came from the guided flow: put the role on this new picture and go back to the character list
+            hub.library.cast(int(rc["project_id"]), rc["role"], it["id"])
+            from app.telegram.handlers.wizard import chars
+
+            await chars(message, hub, int(rc["project_id"]))
+        else:
+            await item_card(message, hub, it["id"])
         return True
     if step == "lib_pkg" and message.document:
         doc = message.document

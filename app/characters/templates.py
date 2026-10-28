@@ -47,12 +47,31 @@ def get(template_id: str) -> dict | None:
     return next((it for it in catalog()["items"] if it["id"] == template_id), None)
 
 
+HINDI = {  # common story words -> English keywords used in the catalog (Hindi names in scripts still find templates)
+    "खरगोश": "rabbit khargosh", "कछुआ": "tortoise kachhua turtle", "कछूआ": "tortoise kachhua turtle", "शेर": "lion sher",
+    "लोमड़ी": "fox lomdi", "बिल्ली": "cat billi", "कुत्ता": "dog kutta", "चिड़िया": "bird sparrow chidiya", "बुलबुल": "bird bulbul",
+    "हाथी": "elephant hathi", "बंदर": "monkey bandar", "भालू": "bear bhalu", "हिरण": "deer hiran", "मोर": "peacock mor",
+    "तोता": "parrot tota", "कौआ": "crow kauwa", "उल्लू": "owl ullu", "गाय": "cow gaay", "बकरी": "goat bakri", "चूहा": "mouse rat chuha",
+    "मछली": "fish machli", "मेंढक": "frog mendhak", "सांप": "snake saanp", "साँप": "snake saanp", "बाघ": "tiger bagh", "घोड़ा": "horse ghoda",
+    "दादा": "grandfather dada old", "दादी": "grandmother dadi old", "नाना": "grandfather nana old", "नानी": "grandmother nani old",
+    "माँ": "mother maa", "पापा": "father papa", "राजा": "king raja", "रानी": "queen rani", "किसान": "farmer kisan",
+    "डॉक्टर": "doctor", "टीचर": "teacher", "बच्चा": "child boy", "लड़का": "boy", "लड़की": "girl",
+    "जंगल": "jungle forest", "नदी": "river nadi", "किनारा": "river bank", "गाँव": "village gaon", "गांव": "village gaon",
+    "खेत": "farm field khet", "बगीचा": "garden bagicha", "बागान": "garden", "स्कूल": "school", "घर": "house home ghar",
+    "बाज़ार": "market bazaar", "बाजार": "market bazaar", "पहाड़": "mountain pahad", "समुंदर": "sea beach", "महल": "palace mahal",
+    "मंदिर": "temple mandir", "पेड़": "tree", "रास्ता": "road path", "शहर": "city shahar",
+}
+
+
 def _tokens(s: str) -> set[str]:
     return {t for t in re.split(r"[^\w]+", (s or "").lower()) if len(t) > 1}
 
 
 def search(query: str, kind: str | None = None, limit: int = 10) -> list[dict]:
     q = _tokens(query)
+    for word, extra in HINDI.items():
+        if word in (query or ""):
+            q |= _tokens(extra)
     if not q:
         return []
     scored = []
