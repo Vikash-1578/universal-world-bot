@@ -75,34 +75,47 @@ def cutout(im: Image.Image, thresh: int = 70) -> Image.Image | None:
 
 
 def remove_ground(cut: Image.Image) -> Image.Image:
-    """AI pictures often stand the figure on a green grass disc. Remove green pixels in the bottom part that are
-    connected to the bottom edge (feet / shoes are not green, so they stay), then crop again."""
+    """AI pictures often stand the figure on a green grass disc (sometimes with a white outline around it).
+    Remove wide green areas in the bottom part of the picture plus their rim; feet / shoes stay. Then crop again."""
     im = cut.convert("RGBA")
     w, h = im.size
-    top = int(h * 0.8)
+    top = int(h * 0.78)
     r, g, b, a = im.split()
     rd, gd, bd, ad = r.load(), g.load(), b.load(), a.load()
     mask = Image.new("L", (w, h), 0)
     md = mask.load()
     for y in range(top, h):
         for x in range(w):
-            if ad[x, y] > 20 and gd[x, y] > 50 and gd[x, y] > rd[x, y] + 18 and gd[x, y] > bd[x, y] + 8:
+            if ad[x, y] > 20 and gd[x, y] > 45 and gd[x, y] > rd[x, y] + 18 and gd[x, y] > bd[x, y] + 8:
                 md[x, y] = 255
-    seeds = [(x, y) for y in range(h - 1, max(top, h - 6), -1) for x in range(0, w, 3) if md[x, y] == 255]
-    if not seeds:
-        return cut
-    for s in seeds:
-        if md[s] == 255:
-            ImageDraw.floodfill(mask, s, 128)
-    removed = mask.point(lambda v: 255 if v == 128 else 0)
+    removed = Image.new("L", (w, h), 0)
+    for y in range(top, h, 2):
+        for x in range(0, w, 2):
+            if md[x, y] != 255:
+                continue
+            ImageDraw.floodfill(mask, (x, y), 100)
+            comp = mask.point(lambda v: 255 if v == 100 else 0)
+            box = comp.getbbox()
+            mask.paste(50, mask=comp)  # visited
+            if box and box[2] - box[0] >= w * 0.4:  # a wide flat green area = ground, not a green shoe
+                removed = ImageChops.lighter(removed, comp)
     if removed.getbbox() is None:
         return cut
-    # also drop the thin dark rim of the disc: grow the removed area a little, but only inside the bottom band
-    grown = removed.filter(ImageFilter.MaxFilter(5))
     band = Image.new("L", (w, h), 0)
     band.paste(255, (0, top, w, h))
-    kill = ImageChops.multiply(grown, band)
+    kill = ImageChops.multiply(removed.filter(ImageFilter.MaxFilter(9)), band)
     new_a = ImageChops.subtract(a, kill)
+    # white / grey outline ring that hugged the disc
+    near = ImageChops.multiply(removed.filter(ImageFilter.MaxFilter(31)), band)
+    nd, na = near.load(), new_a.load()
+    for y in range(top, h):
+        for x in range(w):
+            if nd[x, y] and na[x, y]:
+                mx, mn = max(rd[x, y], gd[x, y], bd[x, y]), min(rd[x, y], gd[x, y], bd[x, y])
+                if (mn > 170 and mx - mn < 40) or (mx < 90 and gd[x, y] >= rd[x, y]):
+                    na[x, y] = 0
+    faint = ImageChops.multiply(new_a.point(lambda v: 255 if v < 110 else 0), band)
+    new_a = ImageChops.subtract(new_a, faint)
     out = Image.merge("RGBA", (r, g, b, new_a))
     box = new_a.point(lambda v: 255 if v > 20 else 0).getbbox()
     return out.crop(box) if box else cut
