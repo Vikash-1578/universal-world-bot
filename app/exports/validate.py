@@ -54,7 +54,7 @@ async def probe(settings: Settings, path: str | Path) -> dict[str, Any]:
         v = re.search(r"Video: (\w+).*?, (\d{2,5})x(\d{2,5}).*?([\d.]+) fps", err)
         if v:
             info["video"] = {"codec": v[1], "width": int(v[2]), "height": int(v[3]), "fps": float(v[4])}
-        a = re.search(r"Audio: (\w+), (\d+) Hz", err)
+        a = re.search(r"Audio: (\w+)[^\n]*?, (\d+) Hz", err)
         if a:
             info["audio"] = {"codec": a[1], "sample_rate": int(a[2]), "channels": None}
         info["readable"] = bool(m)
