@@ -31,10 +31,11 @@ Don't know your Telegram id? Leave `OWNER_ID` empty, start the bot and send it a
 (and does nothing else). Put it in `.env` and restart.
 
 ## 4. Update later
+Stop the bot (Ctrl+C), then:
 ```powershell
-git pull
-powershell -ExecutionPolicy Bypass -File scripts\install.ps1 -SkipConfig
+powershell -ExecutionPolicy Bypass -File scripts\update.ps1
 ```
+(or with Git: `git pull` then `scripts\install.ps1 -SkipConfig`).
 `.env`, `keys.txt` and `data\` are never touched by updates.
 
 ## Better FFmpeg (recommended)
