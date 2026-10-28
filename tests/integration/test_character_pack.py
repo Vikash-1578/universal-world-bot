@@ -85,7 +85,10 @@ class PackTests(TempDirCase):
         diff = ImageChops.difference(main.convert("RGB"), happy.convert("RGB")).getbbox()
         fx0, fy0, fx1, fy1 = pack.face_box(main)
         self.assertIsNotNone(diff)
-        self.assertTrue(diff[1] >= fy0 - 3 and diff[3] <= fy1 + 3, (diff, (fx0, fy0, fx1, fy1)))  # only the face changed
+        soft = 3 * max(2, (fx1 - fx0) // 18)  # feathered edge of the face mask
+        self.assertTrue(diff[1] >= fy0 - soft and diff[3] <= fy1 + soft, (diff, (fx0, fy0, fx1, fy1)))  # only the face changed
+        body = (0, fy1 + soft, main.width, main.height)
+        self.assertIsNone(ImageChops.difference(main.crop(body).convert("RGB"), happy.crop(body).convert("RGB")).getbbox())
         self.assertEqual(main.getchannel("A").tobytes(), happy.getchannel("A").tobytes())  # same outline / transparency
         # the 2D renderer picks the pack up: emotion faces + talk picture for the mouth
         from app.animation.two_d.rig import Rig
