@@ -10,7 +10,7 @@ log_level = "INFO"
 fps = 30
 
 [storage]
-temp_retention_days = 7       # temporary render files older than this may be cleaned (never finals / sources)
+temp_retention_days = 7       # planned (Milestone 10): automatic clean-up of old temp render files is NOT implemented yet
 
 [tools]
 ffmpeg = ""                   # empty = auto-detect

@@ -4,12 +4,15 @@ A private, single-owner **AI video production hub controlled from Telegram**, ru
 Projects, scripts, storyboards with approval, reusable characters, a 2D pipeline, a Blender 3D pipeline, audio,
 subtitles, persistent jobs, exports and backups — built in tested milestones.
 
-> Status: Milestones 1–5 (foundation, dashboard, persistent scheduler, script + storyboard with approvals, character/environment library) are working and tested.
-> See [docs/CHECKLIST.md](docs/CHECKLIST.md) for exactly what works and what does not yet.
+> Status: Milestones 1–5 work and are tested. Milestone 6 (2D) renders real videos but is **silent** (no voices/music/subtitles yet)
+> and its motion is basic. Not built yet: 3D/Blender (M7), audio + subtitles (M8), model manager (M9), backups/hardening (M10).
+> See [docs/CHECKLIST.md](docs/CHECKLIST.md) and [docs/AUDIT.md](docs/AUDIT.md) for exactly what works and what does not.
 
 * Only your Telegram account can use it.
 * Everything is stored locally (`data\`). Cloud AI is **off** until you switch it on.
 * When the laptop is off or asleep, the bot is offline.
+* Telegram is the only interface (buttons + messages). No web app, no team accounts.
+* A video is never made with stand-in figures: if a character or background has no picture, the render stops and says which one.
 
 Start here: [docs/installation.md](docs/installation.md) · Problems: [docs/troubleshooting.md](docs/troubleshooting.md) ·
 Design: [docs/architecture.md](docs/architecture.md)

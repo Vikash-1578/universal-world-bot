@@ -28,7 +28,10 @@ Telegram  ──►  app/telegram (handlers, keyboards, callbacks, conversations
 * **Stages + checkpoints.** A job is a list of stages; each finished stage stores a small JSON checkpoint and the
   checksum of its inputs. After a crash/restart the job resumes and skips finished stages whose inputs did not change.
   Non-resumable steps (one FFmpeg/Blender render) simply restart that stage.
-* **Approvals.** A job can stop in `waiting_for_approval` (e.g. storyboard) and only continues after the owner approves.
+* **Approvals.** Script and storyboard approval are owner button clicks (Script Studio / Storyboard, or the guided
+  flow's "✅ Theek hai" and "🎬 Sab sahi — Final video banao"). A final render refuses an unapproved storyboard. Jobs can also
+  stop in `waiting_for_approval`.
+* **No stand-ins.** A render refuses any scene whose character or background has no picture and names what is missing.
 * **Data stays local.** Everything lives under `data/` (configurable): `hub.db`, `projects/<id>/...`, `work/`.
   Media is on disk; the database stores relative paths + SHA-256 checksums.
 * **Honesty.** Menu sections that are not built yet say which milestone they arrive in. Tests that use fakes
@@ -41,7 +44,9 @@ Telegram  ──►  app/telegram (handlers, keyboards, callbacks, conversations
 ## Database
 SQLite with numbered migrations in `migrations/` (applied in a transaction at start-up; the app refuses to run on a
 database newer than its code). Tables: projects, project_versions, scripts, scenes, assets, characters, jobs,
-job_dependencies, job_stages, models, exports, settings, audit_events, approvals.
+job_dependencies, job_stages, models, exports, settings, audit_events, approvals, and (migration 0003) library_items,
+library_versions, project_items. `characters` and `models` are created but not used yet (the library uses `library_*`;
+the model manager is Milestone 9). Rendered videos are stored as `assets` (type `export:video`) and listed in `exports`.
 
 ## Changes from the suggested structure
 * `app/core/config.py`, `security.py`, `events.py`, `errors.py` are single modules instead of sub-packages (small enough).

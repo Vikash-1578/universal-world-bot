@@ -21,7 +21,7 @@ they prove our own logic, not that Telegram/AI/Blender behave the same way on th
 ## Milestone 2 — Telegram Dashboard and Projects
 | Item | Status | Notes |
 |---|---|---|
-| Main menu (17 sections, honest "coming in Milestone N") | ✅ | owner-only gate confirmed live on Telegram |
+| Menu sections with honest "coming in Milestone N" screens | ✅ | owner-only gate confirmed live on Telegram |
 | Create / list / open / rename / settings / archive projects | ✅ | tests/integration/test_dashboard.py |
 | Versioned, checksummed manifests | ✅ | |
 | Conversation state survives restart | ✅ | |
@@ -72,7 +72,7 @@ they prove our own logic, not that Telegram/AI/Blender behave the same way on th
 | Item | Status | Notes |
 |---|---|---|
 | Plan from storyboard + casting (pinned versions), deterministic | ✅ | tests/integration/test_animation_2d.py |
-| Missing casting -> clear warning + stand-in figure / plain sky | ✅ | |
+| Missing casting / picture -> clear error naming the role; render refused (no stand-in figure / plain sky) | ✅ | changed 2026-10-28 on owner's request; tests/integration/test_animation_2d.py |
 | Puppet renderer (ported v1): walk-in with leg swing, talk bounce, emotions/poses if images exist, camera moves, mood grading, fades | ✅ | real Pillow + FFmpeg render in tests |
 | Lip-sync (mouth) | 🟡 | only when the character has an `expr:talk` image; driven by estimated timing until M8 voices |
 | Render job: one checkpoint per scene, resume reuses finished scenes (sha256 checked) | ✅ | retry test proves scene file not re-rendered |
@@ -80,7 +80,7 @@ they prove our own logic, not that Telegram/AI/Blender behave the same way on th
 | Final needs approved storyboard (gate); preview works on draft | ✅ | |
 | Telegram: Animation / Export screens, scene photo, auto-send video (<50 MB) | ✅ | fake Telegram session |
 | Audio | ⛔ | silent track only — voices, music, subtitles are Milestone 8 |
-| Verified on owner's laptop | ✅ | 2026-10-28: final 1920x1080 30fps 59s, 4 scenes, validated (stand-in figures, casting not done yet) |
+| Verified on owner's laptop | ✅ (file) / ❌ (quality) | 2026-10-28: renders + validates 1080p; owner rated the result 0/10 — static figures, no audio, wrong AI pictures for Hindi names (fixed in code, not re-tested on laptop) |
 ## Milestone 7 — Working 3D Pipeline (Blender) ⬜
 ## Milestone 8 — Audio and Subtitles ⬜
 ## Milestone 9 — Model Management ⬜

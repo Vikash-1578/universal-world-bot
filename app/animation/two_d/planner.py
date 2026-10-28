@@ -1,5 +1,7 @@
 """Storyboard + casting -> a render plan (plain JSON) for the 2D puppet renderer (Milestone 6).
 
+Missing pictures are reported as plan warnings; rendering refuses them (no stand-in figure / plain sky).
+
 The plan is deterministic: same storyboard + same casting versions -> same plan -> same checksum, so finished scenes
 are reused after a restart. Nothing here needs AI.
 
@@ -11,7 +13,7 @@ import io
 import re
 from typing import TYPE_CHECKING, Any
 
-from PIL import Image, ImageDraw
+from PIL import Image
 
 from app.animation.two_d import puppet
 from app.core.errors import Conflict
@@ -177,55 +179,6 @@ def build(hub: "Hub", project_id: int, quality: str = "preview") -> dict[str, An
 
 
 # ------------------------------------------------------------------ plan -> renderer objects
-def placeholder_figure(name: str, height: int = 600) -> Image.Image:
-    """A plain stand-in 'putla' for a role that has no picture yet (head, body, two legs so the rig still walks)."""
-    w = int(height * 0.45)
-    im = Image.new("RGBA", (w, height), (0, 0, 0, 0))
-    d = ImageDraw.Draw(im)
-    import hashlib
-
-    hue = hashlib.md5(name.encode("utf-8")).digest()[0] % 8
-    col = [(230, 120, 80), (90, 150, 230), (120, 190, 90), (200, 110, 200), (230, 190, 70), (90, 190, 190),
-           (240, 150, 170), (150, 120, 220)][hue]
-    u = height / 100
-    d.ellipse((w / 2 - 13 * u, 2 * u, w / 2 + 13 * u, 28 * u), fill=(245, 215, 180, 255), outline=(60, 40, 30, 255), width=max(1, int(u)))
-    d.rectangle((w / 2 - 3 * u, 27 * u, w / 2 + 3 * u, 32 * u), fill=(245, 215, 180, 255))
-    d.rounded_rectangle((w / 2 - 17 * u, 31 * u, w / 2 + 17 * u, 64 * u), radius=int(5 * u), fill=col + (255,))
-    d.rectangle((w / 2 - 14 * u, 63 * u, w / 2 - 3 * u, 99 * u), fill=(60, 60, 70, 255))
-    d.rectangle((w / 2 + 3 * u, 63 * u, w / 2 + 14 * u, 99 * u), fill=(60, 60, 70, 255))
-    _label(d, name, w / 2, 47 * u, int(7 * u), int(32 * u))  # role name on the shirt, so the owner knows who is who
-    return im
-
-
-def _label(d: ImageDraw.ImageDraw, text: str, cx: float, cy: float, size: int, max_w: int) -> None:
-    from PIL import ImageFont
-
-    font = None
-    for cand in ("C:/Windows/Fonts/Nirmala.ttc", "C:/Windows/Fonts/arialbd.ttf", "DejaVuSans-Bold.ttf"):
-        try:
-            font = ImageFont.truetype(cand, size)
-            break
-        except OSError:
-            continue
-    if font is None:
-        font = ImageFont.load_default()
-    text = text[:10]
-    while size > 8 and d.textlength(text, font=font) > max_w and hasattr(font, "font_variant"):
-        size -= 2
-        font = font.font_variant(size=size)
-    d.text((cx, cy), text, fill=(255, 255, 255, 255), font=font, anchor="mm", stroke_width=max(1, size // 10), stroke_fill=(0, 0, 0, 255))
-
-
-def placeholder_background(mood: str) -> Image.Image:
-    im = Image.new("RGB", (1920, 1080), (150, 200, 245))
-    d = ImageDraw.Draw(im)
-    for y in range(0, 700, 4):
-        k = y / 700
-        d.rectangle((0, y, 1920, y + 4), fill=(int(120 + 80 * k), int(180 + 50 * k), int(240 + 10 * k)))
-    d.rectangle((0, 700, 1920, 1080), fill=(110, 170, 90))
-    return im
-
-
 def load_scene(hub: "Hub", sc: dict, fps: int = 25) -> puppet.PuppetScene:
     data_dir = hub.settings.data_dir
 
@@ -234,14 +187,16 @@ def load_scene(hub: "Hub", sc: dict, fps: int = 25) -> puppet.PuppetScene:
 
         return Image.open(io.BytesIO(safe_join(data_dir, *rel.split("/")).read_bytes()))
 
-    bg = img(sc["background"]["path"]).convert("RGB") if sc["background"].get("path") else placeholder_background(sc["mood"])
+    # No stand-ins: a scene without its real background / character pictures is never rendered.
+    missing = ([f"jagah '{sc['background'].get('place') or '?'}'"] if not sc["background"].get("path") else []) + \
+              [f"'{a['id']}'" for a in sc["actors"] if not a.get("main")]
+    if missing:
+        raise Conflict(f"Scene {sc.get('n', '?')} nahi banega — image nahi hai: {', '.join(missing)}.")
+    bg = img(sc["background"]["path"]).convert("RGB")
     actors = []
     for a in sc["actors"]:
-        if a.get("main"):
-            sprite = img(a["main"]).convert("RGBA")
-            variants = {k: img(v).convert("RGBA") for k, v in (a.get("variants") or {}).items()}
-        else:
-            sprite, variants = placeholder_figure(a["id"]), {}
+        sprite = img(a["main"]).convert("RGBA")
+        variants = {k: img(v).convert("RGBA") for k, v in (a.get("variants") or {}).items()}
         actors.append(puppet.Actor(id=a["id"], sprite=sprite, size=a.get("size", "medium"), x=a["x"], enter=a.get("enter"),
                                    variants=variants))
     talks = [puppet.Talk(k["actor"], k["start"], k["end"], k.get("emotion", ""), k.get("action", "")) for k in sc["talks"]]

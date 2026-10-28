@@ -25,6 +25,9 @@ JOB = "anim_2d"
 def start(hub: "Hub", project_id: int, quality: str, chat_id: int | None = None, key: str | None = None) -> dict:
     from app.animation.two_d import planner
 
+    ptype = hub.projects.get_project(project_id)["project_type"]
+    if ptype != "2d":
+        raise Conflict("Ye project 2D nahi hai. 3D (Blender) pipeline Milestone 7 me banegi; 2D renderer isse nahi chalega.")
     if quality == "final" and hub.storyboards.state(project_id).get("status") != "approved":
         raise Conflict("Final video ke liye pehle Storyboard approve karo. (Preview abhi bhi bana sakte ho.)")
     require_pictures(planner.build(hub, project_id, quality))  # fail fast with a clear message
@@ -145,6 +148,11 @@ def register(hub: "Hub") -> None:
                 aid = hub.db.insert("assets", {"asset_type": "export:video", "relative_path": rel, "checksum": sha256(final),
                                                "metadata_json": dumps(meta), "protected": 1 if quality == "final" else 0,
                                                "project_id": pid, "created_at": time.time()})
+                hub.db.insert("exports", {"project_id": pid, "preset": f"2d_{quality}", "output_path": rel,
+                                          "resolution": f"{w}x{h}", "frame_rate": fps, "duration_seconds": meta["seconds"],
+                                          "checksum": sha256(final), "validation_json": dumps({"problems": [], "probe": vst.result}),
+                                          "approval_status": "pending", "kind": quality, "created_at": time.time()})
+                hub.projects.write_manifest(pid)  # the project manifest now lists this video
                 hub.audit.record("export_video", "ok", "project", pid, asset=aid, quality=quality)
                 est.result = {"asset_id": aid, "path": rel, "bytes": final.stat().st_size, **meta}
             return dict(est.result)

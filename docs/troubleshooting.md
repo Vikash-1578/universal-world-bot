@@ -6,12 +6,13 @@
 | "⛔ Ye private bot hai" | Message came from an account that is not `OWNER_ID` | Check `OWNER_ID` in `.env` (numeric id, not @username). |
 | Start says token problem | `BOT_TOKEN` missing / wrong | Copy again from @BotFather → /mybots → API Token. No spaces. |
 | `running scripts is disabled` | PowerShell execution policy | Use `powershell -ExecutionPolicy Bypass -File scripts\...` exactly as written. |
-| `python` not found | Python not installed / not on PATH | Install Python 3.12 from python.org with "Add to PATH". |
+| `python` not found | Python not installed / not on PATH | Install Python 3.11–3.14 from python.org with "Add to PATH". |
 | FFmpeg ❌ in diagnostics | Packages not installed | Run `scripts\install.ps1` again, or `winget install Gyan.FFmpeg`. |
 | Blender ⚠️ | Not installed / different folder | Install Blender 4.x, or set `BLENDER_PATH=` in `.env`. 3D stays off until then. |
 | Job stuck "resource ka wait" | Another heavy job is running | Normal; it starts when the first finishes. Change `max_heavy_workers` only if you have spare RAM/VRAM. |
 | Job "🔁 dobara try hoga" | Temporary error (network etc.) | It retries automatically a few times with a pause. |
 | Button says "purana ho gaya" | The screen is old (bot restarted or data changed) | Send `/menu`. |
-| Database ❌ | `data\hub.db` damaged | Restore from a backup (Milestone 10). |
+| Database ❌ | `data\hub.db` damaged | Backups are not built yet (Milestone 10). Until then, copy the `data\` folder yourself (bot stopped). |
+| "Video nahi banegi — inki image nahi hai: …" | A character / place in the story has no picture | 🎬 project → ▶ Aage badho → Characters → 🎨 AI image, or upload your own picture. Stand-ins are never used. |
 
 Logs: `logs\hub.log` (secrets are removed automatically). Diagnostics: `scripts\diagnose.ps1` or Telegram → 🩺 Diagnostics.

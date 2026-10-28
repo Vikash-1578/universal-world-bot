@@ -47,14 +47,27 @@ class PlannerUnitTests(TempDirCase):
         rig = Rig(cut, {})
         self.assertTrue(rig.has_legs())
         self.assertGreater(rig.compose(leg=2).getbbox()[2], 0)
-        ph = planner.placeholder_figure("Sher")
-        self.assertTrue(Rig(ph, {}).has_legs())  # stand-in can still walk
-        sc = puppet.PuppetScene(background=planner.placeholder_background("day"),
+        ph = cut.transpose(Image.FLIP_LEFT_RIGHT)  # test-only second actor (drawn in the test, not by the app)
+        sky = Image.open(io.BytesIO(background())).convert("RGB")
+        sc = puppet.PuppetScene(background=sky,
                                 actors=[puppet.Actor("A", cut, x=0.3, enter="left"), puppet.Actor("B", ph, x=0.7)],
                                 talks=[puppet.Talk("A", 0.5, 1.5, "happy", "jump")], duration=2.0, camera="zoom_in")
         frame = puppet.preview(sc, 320, 180, 1.0)
         self.assertEqual(frame.size, (320, 180))
         self.assertEqual(frame.mode, "RGB")
+        self.assertFalse(hasattr(planner, "placeholder_figure"))  # no stand-in renderer left in the app
+
+    async def test_load_scene_refuses_missing_pictures(self):
+        hub = make_hub(self.tmp)
+        try:
+            sc = {"n": 2, "background": {"place": "Jungle"}, "actors": [{"id": "Sher", "x": 0.5}], "talks": [],
+                  "duration": 2.0, "camera": "static", "mood": "day", "fade": False}
+            with self.assertRaises(Conflict) as cm:
+                planner.load_scene(hub, sc, 12)
+            self.assertIn("Jungle", cm.exception.user_message)
+            self.assertIn("Sher", cm.exception.user_message)
+        finally:
+            hub.db.close()
 
 
 class AnimationFlowTests(TempDirCase):
@@ -104,6 +117,10 @@ class AnimationFlowTests(TempDirCase):
         self.assertEqual(plan, planner.build(self.hub, self.pid, "preview"))  # deterministic
         with self.assertRaises(Conflict):
             anim_jobs.start(self.hub, self.pid, "final")  # storyboard not approved -> final blocked
+        p3 = self.hub.projects.create_project("Teen D test", "3d")["id"]
+        with self.assertRaises(Conflict) as c3:
+            anim_jobs.start(self.hub, p3, "preview")  # separate 3D project never goes through the 2D renderer
+        self.assertIn("2D nahi", c3.exception.user_message)
         with self.assertRaises(Conflict) as cm:
             anim_jobs.start(self.hub, self.pid, "preview")  # no stand-in 'putla': missing pictures block every render
         self.assertIn("image nahi", cm.exception.user_message)
@@ -133,6 +150,8 @@ class AnimationFlowTests(TempDirCase):
         info = await probe(self.hub.settings, outs[0]["abs"])
         self.assertEqual(check(info, width=640, height=360, fps=12), [])
         self.assertAlmostEqual(info["duration"], plan["seconds"], delta=0.6)
+        man = self.hub.projects.manifest(self.pid)
+        self.assertEqual([e["kind"] for e in man["exports"]], ["preview"])  # export listed in the project manifest
         # restart/retry: finished scene checkpoints are reused, not re-rendered
         stages = {s["stage_name"]: s for s in self.hub.jobs.stages(job["id"])}
         self.assertIn("scene_1", stages)

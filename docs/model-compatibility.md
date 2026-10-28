@@ -7,6 +7,7 @@ Only models that were actually tested on the laptop are marked ✅. Everything e
 | Script writing, AI Director, descriptions | Ollama `qwen3:8b` | GPU (~6-7 GB) | ✅ tested 2026-10-28 (Hindi: basic quality) |
 | Script writing (alt) | Ollama `llama3.1:8b`, `gemma3:4b` | GPU | not tested |
 | Character / background images | ComfyUI + SDXL checkpoint | GPU (SDXL ~7-8 GB) | ⬜ not installed yet |
+| Character / background images (cloud, opt-in) | Cloudflare Workers AI (flux-1-schnell + fallbacks) | cloud, free daily limit | ✅ tested 2026-10-28 (needs Cloud AI ON + CF keys) |
 | Speech-to-text | Groq Whisper (cloud, opt-in) | cloud | not tested |
 | Speech-to-text (local) | faster-whisper | GPU/CPU | Milestone 9 |
 | Text-to-speech | Piper / Kokoro / XTTS | CPU/GPU | Milestone 8 |
@@ -26,7 +27,7 @@ everything else still works.
 4. In Telegram: 🧍 Characters → the screen shows "🎨 AI image (ComfyUI): chalu".
 5. Optional: `checkpoint = "file-name.safetensors"` under `[image]` to choose a specific one.
 
-The bot asks ComfyUI for characters on a plain green background, then removes the background itself. If the
+The bot asks the image AI for characters on a plain white background, then removes the background (and any grass disc under the feet) itself. If the
 cut-out is not clean, upload a corrected PNG with 🖼 Nayi image (a new version is created, nothing is lost).
 
 **Licences:** every checkpoint has its own licence. Check it before using images commercially (YouTube monetisation).
