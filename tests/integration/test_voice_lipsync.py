@@ -98,7 +98,7 @@ class MouthAndMotionTests(TempDirCase):
         x0, y0, x1, y1 = rig.auto_mouth
         self.assertTrue(40 < (x0 + x1) / 2 < 140 and 110 < (y0 + y1) / 2 < 190, rig.auto_mouth)
         closed, opened = rig.compose(mouth="closed"), rig.compose(mouth="open")
-        diff = ImageChops.difference(closed, opened).getbbox()
+        diff = ImageChops.difference(closed.convert("RGB"), opened.convert("RGB")).getbbox()
         self.assertIsNotNone(diff)
         self.assertLess(diff[3], rig.pad + rig.head_bottom)  # only the head changes, body untouched
         self.assertIsNone(find_mouth(Image.new("RGBA", (10, 10))))
