@@ -45,7 +45,7 @@ class OwnerOnlyTests(TempDirCase):
         await feed(self.bot, self.dp, cb_update(ok))
         self.assertTrue(self.hub.cloud_enabled)
         await feed(self.bot, self.dp, cb_update(ok))  # replay of the same button does nothing new
-        self.assertEqual(len(self.hub.db.all("SELECT * FROM audit_events WHERE action = 'cloud_enable'")), 1)
+        self.assertEqual(len(self.hub.db.all("SELECT * FROM audit_events WHERE action = 'cloud_enable' AND result = 'ok'")), 1)
 
     async def test_owner_ok(self):
         await feed(self.bot, self.dp, msg_update("/start", uid=OWNER))
