@@ -16,7 +16,9 @@ def register(hub: "Hub") -> None:
         async with ctx.stage("write", ctx.inputs) as st:
             if not st.skipped:
                 await ctx.progress(0.2, "AI script likh raha hai")
-                if ctx.inputs.get("revise_script_id"):
+                if ctx.inputs.get("story"):
+                    v = await hub.scripts.story_to_script(pid, ctx.inputs["story"])
+                elif ctx.inputs.get("revise_script_id"):
                     v = await hub.scripts.revise_with_ai(int(ctx.inputs["revise_script_id"]), ctx.inputs["text"])
                 else:
                     v = await hub.scripts.write_with_ai(pid, ctx.inputs["text"])

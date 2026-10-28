@@ -8,7 +8,7 @@ from app.telegram.callbacks.codec import make
 
 # (key, label, milestone that makes it work; 0 = available now)
 MAIN = [
-    ("projects", "📁 Projects", 0), ("new", "🎬 New Production", 0),
+    ("projects", "📁 Projects", 0), ("new", "🎬 Nayi video", 0),
     ("script", "📜 Script Studio", 0), ("storyboard", "🎞 Storyboard", 0),
     ("characters", "🧍 Characters", 0), ("environments", "🏞 Environments", 0),
     ("animation", "🎭 Animation", 0), ("audio", "🎤 Audio", 8),
@@ -21,15 +21,23 @@ MAIN = [
 AVAILABLE: dict[str, int] = {k: m for k, _, m in MAIN}
 
 
+PRIMARY = [("new", "🎬 Nayi video banao"), ("projects", "📁 Mere projects"), ("characters", "🧍 Characters & jagah"),
+           ("jobs", "⏳ Chal rahe kaam"), ("settings", "⚙️ Settings"), ("tools", "🧰 Aur tools")]
+
+
 def main_menu() -> KB:
-    rows, row = [], []
-    for key, label, _ in MAIN:
-        row.append(B(text=label, callback_data=make("m", key)))
-        if len(row) == 2:
-            rows.append(row)
-            row = []
-    if row:
-        rows.append(row)
+    """Only the few things used every day; everything else is one tap away under 🧰 Aur tools."""
+    rows = [[B(text=PRIMARY[0][1], callback_data=make("m", PRIMARY[0][0]))]]
+    rest = PRIMARY[1:]
+    rows += [[B(text=l, callback_data=make("m", k)) for k, l in rest[i:i + 2]] for i in range(0, len(rest), 2)]
+    return KB(inline_keyboard=rows)
+
+
+def tools_menu() -> KB:
+    primary = {k for k, _ in PRIMARY}
+    items = [(k, l + ("" if m == 0 else f" (M{m})")) for k, l, m in MAIN if k not in primary]
+    rows = [[B(text=l, callback_data=make("m", k)) for k, l in items[i:i + 2]] for i in range(0, len(items), 2)]
+    rows.append(nav())
     return KB(inline_keyboard=rows)
 
 

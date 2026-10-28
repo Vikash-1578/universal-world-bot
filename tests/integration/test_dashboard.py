@@ -21,7 +21,9 @@ class DashboardTests(TempDirCase):
     async def test_main_menu_has_all_sections(self):
         await feed(self.bot, self.dp, msg_update("/menu"))
         got = buttons(self.sess)
-        self.assertEqual(len(got), len(MAIN))
+        self.assertEqual(len(got), 6)  # short main menu; the rest under 🧰 Aur tools
+        await feed(self.bot, self.dp, cb_update(make("m", "tools")))
+        self.assertEqual(len(buttons(self.sess)), len(MAIN) - 5 + 1)  # every other section + Back
         await feed(self.bot, self.dp, cb_update(make("m", "audio")))
         self.assertIn("Milestone 8", texts(self.sess)[-1])  # not-built-yet sections say so honestly
 

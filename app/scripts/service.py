@@ -50,6 +50,19 @@ Narrator: ...
 Now write the full script:
 """
 
+STORY_PROMPT = """Turn this story into a short animated cartoon SCRIPT. Keep the story, its characters and its ending.
+Give the characters short spoken lines (dialogue) where it fits; use Narrator for the rest.
+Language for the story text: {lang}. Audience: {audience}. 3-6 scenes. Do not repeat lines.
+
+FORMAT RULES (a computer reads this):
+- Title:, [Scene N: place, time] and Narrator: are ALWAYS in English letters, even for a Hindi story.
+- Name: (emotion) dialogue      - stage directions on their own line in brackets
+- No markdown, nothing before Title: and nothing after the last line.
+
+STORY:
+{story}
+"""
+
 REVISE_PROMPT = """Revise this cartoon script. Keep the same format: Title:, [Scene N: ...], Narrator: (always in English letters),
 Name: (emotion) dialogue. Do not repeat lines. Use simple correct words.
 Keep character names consistent. Change ONLY what the instruction asks.
@@ -142,6 +155,18 @@ class ScriptService:
                                      seconds=s.get("target_seconds", 60))
         text = await self.llm.chat(prompt, max_tokens=3000)
         return self.create_version(project_id, _clean(text), note=f"AI ({self.llm.last_provider})")
+
+    async def story_to_script(self, project_id: int, story: str) -> dict:
+        """A pasted / uploaded prose story -> script format (characters + dialogue) with AI."""
+        if self.llm is None:
+            from app.models.llm import LLMUnavailable
+
+            raise LLMUnavailable("AI engine set nahi hai.")
+        story = (story or "").strip()[:12000]
+        s = self.projects.get_project(project_id)["settings"]
+        text = await self.llm.chat(STORY_PROMPT.format(story=story, lang=LANG.get(s.get("language", "hindi"), "Hindi"),
+                                                       audience=s.get("audience", "kids")), max_tokens=3500)
+        return self.create_version(project_id, _clean(text), note=f"Kahani se script, AI ({self.llm.last_provider})")
 
     async def revise_with_ai(self, script_id: int, instruction: str) -> dict:
         if self.llm is None:

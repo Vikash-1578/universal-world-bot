@@ -14,7 +14,7 @@ from app.telegram.ui import answer, fail, show
 router = Router(name="home")
 
 HOME_TEXT = ("🌍 Universal World — Video Production Hub\n\n"
-             "Neeche se kaam chuno. Jo hissa abhi ban raha hai wo saaf batayega ki kis milestone me aayega.")
+             "🎬 Nayi video banao dabao — bot ek-ek step me le chalega:\nKahani → Characters → Awaaz → Final check → Video.")
 
 HELP_TEXT = ("❓ Help\n\n"
              "• 📁 Projects — tumhare saare video projects. Kholo, naam/settings badlo, version save karo.\n"
@@ -90,6 +90,18 @@ async def cb_menu(cb: CallbackQuery, hub) -> None:
 
             await answer(cb)
             await pick(cb, hub, 0)
+            return
+        if c.action == "new":
+            from app.telegram.handlers.wizard import start
+
+            await answer(cb)
+            await start(cb, hub)
+            return
+        if c.action == "tools":
+            from app.telegram.keyboards.menus import tools_menu
+
+            await answer(cb)
+            await show(cb, "🧰 Aur tools — har hissa alag se kholna ho to:", tools_menu())
             return
         if c.action in ("projects", "new", "jobs"):
             from app.telegram.handlers import jobs, projects

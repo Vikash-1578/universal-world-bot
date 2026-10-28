@@ -125,6 +125,7 @@ async def cb_anim(cb: CallbackQuery, hub) -> None:
             pid = c.int(0)
             await answer(cb, "Photo bana raha hoon…")
             plan = planner.build(hub, pid, "preview")
+            anim_jobs.require_pictures(plan)
             sc = plan["scenes"][0]
 
             def draw() -> bytes:

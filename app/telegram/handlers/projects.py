@@ -44,7 +44,11 @@ def project_text(p: dict, versions: int) -> str:
 async def show_project(target, hub, pid: int) -> None:
     p = hub.projects.get_project(pid)
     n = len(hub.projects.versions(pid))
+    from app.telegram.handlers.wizard import STEP_LABEL, next_step
+
+    step = next_step(hub, pid) if p["project_type"] == "2d" else ""
     rows = [
+        *([[B(text=f"▶ Aage badho: {STEP_LABEL[step]}", callback_data=make("w", "next", pid))]] if step else []),
         [B(text="📜 Script", callback_data=make("ss", "open", pid)), B(text="🎞 Storyboard", callback_data=make("sb", "open", pid))],
         [B(text="🎭 Casting (characters/jagah)", callback_data=make("lb", "cast", pid))],
         [B(text="🎬 Animation / Video banao", callback_data=make("an", "open", pid))],

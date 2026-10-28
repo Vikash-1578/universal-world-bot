@@ -80,6 +80,9 @@ class AnimationFlowTests(TempDirCase):
         k = lib.create_item("character", "Golu")
         lib.add_image(k["id"], "main", figure_on_green())
         lib.cast(self.pid, "Khargosh", k["id"])
+        t = lib.create_item("character", "Tortu")
+        lib.add_image(t["id"], "main", figure_on_green(bg=(255, 255, 255)))
+        lib.cast(self.pid, "Kachhua", t["id"])
         e = lib.create_item("environment", "Jungle")
         lib.add_image(e["id"], "background", background())
         lib.cast(self.pid, "Jungle", e["id"])
@@ -101,6 +104,9 @@ class AnimationFlowTests(TempDirCase):
         self.assertEqual(plan, planner.build(self.hub, self.pid, "preview"))  # deterministic
         with self.assertRaises(Conflict):
             anim_jobs.start(self.hub, self.pid, "final")  # storyboard not approved -> final blocked
+        with self.assertRaises(Conflict) as cm:
+            anim_jobs.start(self.hub, self.pid, "preview")  # no stand-in 'putla': missing pictures block every render
+        self.assertIn("image nahi", cm.exception.user_message)
 
     @needs_ffmpeg
     async def test_render_validate_export_and_resume(self):
@@ -167,6 +173,9 @@ class AnimationTelegramTests(TempDirCase):
         self.assertIn(make("an", "go", self.pid, "preview"), buttons(self.sess))
         await feed(self.bot, self.dp, cb_update(make("an", "go", self.pid, "final")))  # draft -> blocked with an alert
         self.assertEqual(self.hub.jobs.list_jobs(project_id=self.pid), [])
+        await feed(self.bot, self.dp, cb_update(make("an", "go", self.pid, "preview")))  # nothing cast -> blocked
+        self.assertEqual(self.hub.jobs.list_jobs(project_id=self.pid), [])
+        AnimationFlowTests._cast_all(self)
         await feed(self.bot, self.dp, cb_update(make("an", "go", self.pid, "preview"), uid=STRANGER))
         self.assertEqual(self.hub.jobs.list_jobs(project_id=self.pid), [])  # stranger blocked by the owner gate
         await feed(self.bot, self.dp, cb_update(make("an", "go", self.pid, "preview")))

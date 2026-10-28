@@ -16,10 +16,10 @@ async def on_message(message: Message, hub) -> None:
     uid = message.from_user.id if message.from_user else 0
     st = hub.extra["conv"].get(uid)
     if st and not message.text and (message.document or message.voice or message.audio or message.photo):
-        from app.telegram.handlers import library, studio
+        from app.telegram.handlers import library, studio, wizard
 
         try:
-            for h in (studio.on_media, library.on_media):
+            for h in (wizard.on_media, studio.on_media, library.on_media):
                 if await h(message, hub, st["step"], st["data"]):
                     return
         except Exception as e:  # noqa: BLE001
@@ -29,9 +29,9 @@ async def on_message(message: Message, hub) -> None:
         if len(message.text) > MAX_TEXT:
             await message.answer("⚠️ Text bahut lamba hai (20,000 akshar tak). File (.txt) bana ke bhejo.", parse_mode=None)
             return
-        from app.telegram.handlers import library, projects, studio
+        from app.telegram.handlers import library, projects, studio, wizard
 
-        handlers = [projects.on_text, studio.on_text, library.on_text, *hub.extra.get("text_handlers", [])]
+        handlers = [wizard.on_text, projects.on_text, studio.on_text, library.on_text, *hub.extra.get("text_handlers", [])]
         try:
             for h in handlers:
                 if await h(message, hub, st["step"], st["data"]):

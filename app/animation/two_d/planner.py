@@ -136,7 +136,7 @@ def build(hub: "Hub", project_id: int, quality: str = "preview") -> dict[str, An
                     mood = "day"  # night picture already dark: no extra grading
         if "path" not in bg and place and place not in missing_roles:
             missing_roles.add(place)
-            warnings.append(f"🏞 '{place}' ki jagah (background) cast nahi hai — saada aasmaan/zameen lagegi.")
+            warnings.append(f"🏞 '{place}' ki jagah (background) ki image nahi hai.")
         names = [n for n in sc.get("characters", []) if "arrat" not in n.lower() and n.strip()][:4]
         actors = []
         pos = puppet.layout(len(names))
@@ -149,7 +149,7 @@ def build(hub: "Hub", project_id: int, quality: str = "preview") -> dict[str, An
                                    if (k.startswith("expr:") or k.startswith("pose:")) and ":original" not in k})
             elif name not in missing_roles:
                 missing_roles.add(name)
-                warnings.append(f"🧍 '{name}' cast nahi hai (ya uski image nahi) — uski jagah saada putla dikhega.")
+                warnings.append(f"🧍 '{name}' ki image nahi hai.")
             if name not in seen_actor:
                 a["enter"] = "left" if pos[i] <= 0.5 else "right"
                 seen_actor.add(name)

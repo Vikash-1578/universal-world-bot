@@ -27,10 +27,18 @@ def start(hub: "Hub", project_id: int, quality: str, chat_id: int | None = None,
 
     if quality == "final" and hub.storyboards.state(project_id).get("status") != "approved":
         raise Conflict("Final video ke liye pehle Storyboard approve karo. (Preview abhi bhi bana sakte ho.)")
-    planner.build(hub, project_id, quality)  # fail fast with a clear message
+    require_pictures(planner.build(hub, project_id, quality))  # fail fast with a clear message
     title = "2D preview video" if quality == "preview" else "2D final video"
     return hub.jobs.submit_job(JOB, project_id, {"project_id": project_id, "quality": quality}, 4 if quality == "preview" else 5,
                                idempotency_key=key, chat_id=chat_id, title=title)
+
+
+def require_pictures(plan: dict) -> None:
+    """No stand-in 'putla' / plain sky in a real video: every role and place needs its picture first."""
+    if plan.get("warnings"):
+        names = [w.split("'")[1] if "'" in w else w for w in plan["warnings"]]
+        raise Conflict("Video nahi banegi — inki image nahi hai: " + ", ".join(names[:8]) +
+                       ". 🎭 Casting / 🧍 Characters me AI image banao ya apni image do.")
 
 
 def exports(hub: "Hub", project_id: int, limit: int = 8) -> list[dict]:
@@ -73,6 +81,7 @@ def register(hub: "Hub") -> None:
                 if quality == "final" and hub.storyboards.state(pid).get("status") != "approved":
                     raise Conflict("Storyboard approved nahi hai — final video ruki.")
                 plan = planner.build(hub, pid, quality)
+                require_pictures(plan)
                 (ctx.workdir / "plan.json").write_text(json.dumps(plan, ensure_ascii=False, indent=1), encoding="utf-8")
                 st.result = {"sum": checksum(plan), "scenes": len(plan["scenes"]), "seconds": plan["seconds"],
                              "warnings": plan["warnings"]}
