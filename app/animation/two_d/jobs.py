@@ -123,7 +123,12 @@ def register(hub: "Hub") -> None:
                 p = hub.projects.get_project(pid)
                 stamp = time.strftime("%Y%m%d_%H%M%S")
                 folder = hub.projects.folder(pid, "exports")
-                final = folder / f"{p['id']}_{quality}_{w}x{h}_{stamp}.mp4"
+                final = folder / f"{p['id']}_{quality}_{w}x{h}_{stamp}_job{ctx.id}.mp4"
+                n = 2
+                while final.exists() or hub.db.one("SELECT id FROM assets WHERE relative_path = ?",
+                                                     (str(final.relative_to(hub.settings.data_dir)).replace("\\", "/"),)):
+                    final = folder / f"{p['id']}_{quality}_{w}x{h}_{stamp}_job{ctx.id}_{n}.mp4"
+                    n += 1
                 final.write_bytes(joined.read_bytes())
                 rel = str(final.relative_to(hub.settings.data_dir)).replace("\\", "/")
                 meta = {"quality": quality, "width": w, "height": h, "fps": fps, "seconds": round(vst.result["duration"], 2),
