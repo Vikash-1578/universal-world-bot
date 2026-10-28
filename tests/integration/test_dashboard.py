@@ -22,8 +22,8 @@ class DashboardTests(TempDirCase):
         await feed(self.bot, self.dp, msg_update("/menu"))
         got = buttons(self.sess)
         self.assertEqual(len(got), len(MAIN))
-        await feed(self.bot, self.dp, cb_update(make("m", "animation")))
-        self.assertIn("Milestone 6", texts(self.sess)[-1])
+        await feed(self.bot, self.dp, cb_update(make("m", "audio")))
+        self.assertIn("Milestone 8", texts(self.sess)[-1])  # not-built-yet sections say so honestly
 
     async def test_create_open_rename_settings_version_archive(self):
         await feed(self.bot, self.dp, cb_update(make("m", "new")))
