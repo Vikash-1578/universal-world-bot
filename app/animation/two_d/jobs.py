@@ -31,6 +31,7 @@ def start(hub: "Hub", project_id: int, quality: str, chat_id: int | None = None,
     if quality == "final" and hub.storyboards.state(project_id).get("status") != "approved":
         raise Conflict("Final video ke liye pehle Storyboard approve karo. (Preview abhi bhi bana sakte ho.)")
     require_pictures(planner.build(hub, project_id, quality))  # fail fast with a clear message
+    hub.tts.check(hub.projects.get_project(project_id)["settings"].get("language", "hindi"))  # voices are required
     title = "2D preview video" if quality == "preview" else "2D final video"
     return hub.jobs.submit_job(JOB, project_id, {"project_id": project_id, "quality": quality}, 4 if quality == "preview" else 5,
                                idempotency_key=key, chat_id=chat_id, title=title)
@@ -94,8 +95,48 @@ def register(hub: "Hub") -> None:
         parts: list[Path] = []
         total = len(plan["scenes"])
         loop = asyncio.get_running_loop()
+        # ---- voices: real speech for every line (local Piper TTS), one style per character
+        from app.audio import timeline as tl
+        from app.audio import tts as T
+
+        language = hub.projects.get_project(pid)["settings"].get("language", "hindi")
+        voice = hub.tts.check(language)  # clear error + fix steps if Piper / the voice file is missing
+        speakers = sorted({ln["speaker"] for sc in plan["scenes"] for ln in sc.get("lines", []) if ln.get("actor")})
+        cast = hub.library.casting(pid)
+        hints = {r: hub.library.get(cast[r]["item_id"], cast[r]["version"])["profile"] for r in speakers if r in cast}
+        vmap = T.assign(hub.db, pid, speakers, hints)
+        timed: list[dict] = []
         for i, sc in enumerate(plan["scenes"]):
-            async with ctx.stage(f"scene_{sc['n']}", {"plan": info["sum"], "scene": sc}) as st:
+            vin = {"plan": info["sum"], "n": sc["n"], "lines": sc.get("lines", []), "lead": sc.get("lead", 0.5), "voice": voice,
+                   "styles": {r: vmap.get(r) for r in speakers}, "fps": fps}
+            async with ctx.stage(f"voice_{sc['n']}", vin) as vst:
+                wav = ctx.workdir / f"scene_{sc['n']:03d}.wav"
+                if not (vst.skipped and wav.exists() and sha256(wav) == vst.result.get("sha256")):
+                    await ctx.progress(0.03 + 0.15 * i / total, f"awaaz {sc['n']}/{total}")
+
+                    def make_voice(sc: dict = sc, wav: Path = wav) -> dict:
+                        def make_line(k: int, ln: dict) -> Path:
+                            raw = ctx.workdir / f"s{sc['n']:03d}_l{k:02d}_raw.wav"
+                            done = ctx.workdir / f"s{sc['n']:03d}_l{k:02d}.wav"
+                            hub.tts.synth(ln["text"], voice, raw)
+                            T.apply_style(ffmpeg, raw, done, T.style_of(vmap, ln["speaker"] if ln.get("actor") else None))
+                            if tl.rms_db(done) < -50:
+                                raise HubError(f"'{ln['text'][:30]}…' ki awaaz khaali bani (TTS).")
+                            return done
+
+                        return tl.build_scene_audio(sc.get("lines", []), sc.get("lead", 0.5), wav, make_line,
+                                                    min_seconds=2.0, fps=fps)
+
+                    res = await asyncio.to_thread(make_voice)
+                    vst.result = {"sha256": sha256(wav), **res}
+                timed.append({**sc, "audio": str(wav), "duration": vst.result["duration"],
+                              "talks": [{"actor": c["speaker"], "start": c["start"], "end": c["end"], "emotion": c.get("emotion", ""),
+                                         "action": c.get("action", ""), "text": c["text"]}
+                                        for c in vst.result["cues"] if c.get("actor")],
+                              "cues": vst.result["cues"]})
+        for i, sc in enumerate(timed):
+            async with ctx.stage(f"scene_{sc['n']}", {"plan": info["sum"], "scene": {k: v for k, v in sc.items() if k != "audio"},
+                                                       "audio": sha256(Path(sc["audio"]))}) as st:
                 out = ctx.workdir / f"scene_{sc['n']:03d}.mp4"
                 if st.skipped and out.exists() and sha256(out) == st.result.get("sha256"):
                     parts.append(out)
@@ -109,9 +150,9 @@ def register(hub: "Hub") -> None:
                         last[0] = now
                         asyncio.run_coroutine_threadsafe(ctx.progress(0.05 + 0.8 * (i + frac) / total, f"scene {i + 1}/{total}"), loop)
 
-                def work() -> None:
+                def work(sc: dict = sc, out: Path = out) -> None:
                     scene = planner.load_scene(hub, sc, fps)
-                    puppet.render_puppet(scene, w, h, fps, out, ffmpeg, crf=plan["crf"], on_frame=on_frame)
+                    puppet.render_puppet(scene, w, h, fps, out, ffmpeg, Path(sc["audio"]), crf=plan["crf"], on_frame=on_frame)
 
                 await asyncio.to_thread(work)
                 st.result = {"path": out.name, "sha256": sha256(out)}
@@ -122,14 +163,23 @@ def register(hub: "Hub") -> None:
                 await ctx.progress(0.88, "join")
                 await _join(ffmpeg, parts, joined)
                 st.result = {"sha256": sha256(joined)}
+        # ---- one timeline for subtitles: scene offsets are the exact (frame-rounded) audio lengths
+        offset, all_cues = 0.0, []
+        for sc in timed:
+            all_cues += [{**c, "start": round(offset + c["start"], 3), "end": round(offset + c["end"], 3)} for c in sc["cues"]]
+            offset += sc["duration"]
+        srt_text = tl.build_srt(all_cues)
+        (ctx.workdir / "joined.srt").write_text(srt_text, encoding="utf-8")
         async with ctx.stage("validate", {"sha": st.result.get("sha256")}) as vst:
-            from app.exports.validate import check, probe
+            from app.exports.validate import check, check_av, probe
 
             probe_info = await probe(hub.settings, joined)
             problems = check(probe_info, width=w, height=h, fps=fps, min_seconds=1.0, need_audio=True)
+            av_problems, av = await check_av(hub.settings, joined, expected_seconds=offset, srt_text=srt_text if all_cues else None)
+            problems += av_problems
             if problems:
                 raise HubError("Bani video sahi nahi hai: " + "; ".join(problems))
-            vst.result = {"duration": probe_info["duration"], "video": probe_info["video"]}
+            vst.result = {"duration": probe_info["duration"], "video": probe_info["video"], "av": av, "lines": len(all_cues)}
         async with ctx.stage("export", {"sha": st.result.get("sha256")}) as est:
             if not est.skipped:
                 p = hub.projects.get_project(pid)
@@ -142,9 +192,13 @@ def register(hub: "Hub") -> None:
                     final = folder / f"{p['id']}_{quality}_{w}x{h}_{stamp}_job{ctx.id}_{n}.mp4"
                     n += 1
                 final.write_bytes(joined.read_bytes())
+                srt = final.with_suffix(".srt")
+                srt.write_text(srt_text, encoding="utf-8")
                 rel = str(final.relative_to(hub.settings.data_dir)).replace("\\", "/")
                 meta = {"quality": quality, "width": w, "height": h, "fps": fps, "seconds": round(vst.result["duration"], 2),
-                        "scenes": total, "job_id": ctx.id, "silent_audio": True, "warnings": info.get("warnings", [])}
+                        "scenes": total, "job_id": ctx.id, "silent_audio": False, "voice": voice, "lines": vst.result["lines"],
+                        "loudness_db": vst.result["av"].get("max_volume"), "subtitles": str(srt.relative_to(hub.settings.data_dir)).replace("\\", "/"),
+                        "warnings": info.get("warnings", [])}
                 aid = hub.db.insert("assets", {"asset_type": "export:video", "relative_path": rel, "checksum": sha256(final),
                                                "metadata_json": dumps(meta), "protected": 1 if quality == "final" else 0,
                                                "project_id": pid, "created_at": time.time()})

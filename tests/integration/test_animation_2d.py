@@ -10,7 +10,7 @@ from app.animation.two_d import planner, puppet
 from app.animation.two_d.rig import Rig
 from app.core.errors import Conflict
 from app.telegram.callbacks.codec import make
-from tests.helpers import OWNER, STRANGER, TempDirCase, buttons, cb_update, feed, make_bot_and_dp, make_hub, needs_ffmpeg, texts
+from tests.helpers import OWNER, STRANGER, FakeTTS, TempDirCase, buttons, cb_update, feed, make_bot_and_dp, make_hub, needs_ffmpeg, texts
 from tests.unit.test_library import background, figure_on_green
 from tests.unit.test_script_storyboard import SCRIPT
 
@@ -74,6 +74,7 @@ class AnimationFlowTests(TempDirCase):
     async def asyncSetUp(self):
         await super().asyncSetUp()
         self.hub = make_hub(self.tmp)
+        self.hub.tts = FakeTTS()
         self.pid = self.hub.projects.create_project("Race", "2d")["id"]
 
     async def asyncTearDown(self):
@@ -149,7 +150,9 @@ class AnimationFlowTests(TempDirCase):
 
         info = await probe(self.hub.settings, outs[0]["abs"])
         self.assertEqual(check(info, width=640, height=360, fps=12), [])
-        self.assertAlmostEqual(info["duration"], plan["seconds"], delta=0.6)
+        self.assertFalse(meta["silent_audio"])  # real voice track, not the old silent one
+        self.assertEqual(meta["lines"], 3)  # 2 dialogue lines + 1 narrator line in SHORT
+        self.assertTrue((self.hub.settings.data_dir / meta["subtitles"]).exists())
         man = self.hub.projects.manifest(self.pid)
         self.assertEqual([e["kind"] for e in man["exports"]], ["preview"])  # export listed in the project manifest
         # restart/retry: finished scene checkpoints are reused, not re-rendered
@@ -170,6 +173,7 @@ class AnimationTelegramTests(TempDirCase):
     async def asyncSetUp(self):
         await super().asyncSetUp()
         self.hub = make_hub(self.tmp)
+        self.hub.tts = FakeTTS()
         self.bot, self.dp, self.sess = make_bot_and_dp(self.hub)
         self.pid = self.hub.projects.create_project("Race", "2d")["id"]
 

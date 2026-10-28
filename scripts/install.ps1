@@ -7,18 +7,20 @@
     3. Installs the pinned packages from requirements.txt
     4. Creates .env (asks for your bot token + Telegram id) if it does not exist
     5. Creates the local database (data\hub.db)
-    6. Runs diagnostics (GPU, FFmpeg, Blender, disk, RAM ...)
+    6. Downloads the free local Hindi voice for Piper TTS once (~63 MB, hi_IN-pratham-medium) into data\models\piper
+    7. Runs diagnostics (GPU, FFmpeg, Blender, disk, RAM, voices ...)
 
-  It does NOT download AI models, change system settings, or need admin rights.
+  The only model it downloads is that one voice file (no API key, no account). It does not change system
+  settings or need admin rights. Skip the voice with -SkipVoice.
   Usage (from the project folder):   powershell -ExecutionPolicy Bypass -File scripts\install.ps1
 #>
-param([switch]$SkipConfig)
+param([switch]$SkipConfig, [switch]$SkipVoice)
 
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 
-function Step($n, $text) { Write-Host "`n[$n/6] $text" -ForegroundColor Cyan }
+function Step($n, $text) { Write-Host "`n[$n/7] $text" -ForegroundColor Cyan }
 function Ok($text)   { Write-Host "  OK  $text" -ForegroundColor Green }
 function Warn($text) { Write-Host "  !!  $text" -ForegroundColor Yellow }
 function Fail($text, $fix) {
@@ -91,8 +93,24 @@ Step 5 "Database"
 if ($LASTEXITCODE -ne 0) { Fail "Database nahi ban paya" "data folder ki permission dekho." }
 Ok "Database ready"
 
-# ---------------------------------------------------------------- 6. diagnostics
-Step 6 "Diagnostics"
+# ---------------------------------------------------------------- 6. voice (Piper TTS)
+Step 6 "Awaaz (Piper TTS, free, laptop par)"
+$voiceDir = Join-Path $Root "data\models\piper"
+New-Item -ItemType Directory -Force -Path $voiceDir | Out-Null
+if (Test-Path (Join-Path $voiceDir "hi_IN-pratham-medium.onnx")) {
+    Ok "Hindi awaaz pehle se hai"
+} elseif ($SkipVoice) {
+    Warn "Awaaz download chhoda (-SkipVoice). Video banane se pehle ye chalana: venv\Scripts\python -m piper.download_voices hi_IN-pratham-medium --download-dir data\models\piper"
+} else {
+    Write-Host "  Hindi awaaz download ho rahi hai (~63 MB, ek baar)..."
+    & $venvPy -m piper.download_voices hi_IN-pratham-medium --download-dir $voiceDir
+    if ($LASTEXITCODE -ne 0) { Warn "Awaaz download nahi hui (internet?). Baad me dobara: scripts\install.ps1 -SkipConfig" }
+    else { Ok "Hindi awaaz ready (hi_IN-pratham-medium)" }
+}
+# English projects: venv\Scripts\python -m piper.download_voices en_US-lessac-medium --download-dir data\models\piper
+
+# ---------------------------------------------------------------- 7. diagnostics
+Step 7 "Diagnostics"
 & $venvPy -m app.diagnose
 if ($LASTEXITCODE -ne 0) {
     Warn "Kuch zaroori cheez missing hai (upar 'fail' wali line dekho). Theek karke: scripts\diagnose.ps1"

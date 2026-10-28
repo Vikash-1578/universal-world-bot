@@ -143,3 +143,46 @@ def buttons(sess) -> list[str]:
         if kb is not None and hasattr(kb, "inline_keyboard"):
             return [b.callback_data for row in kb.inline_keyboard for b in row]
     return []
+
+
+# ------------------------------------------------------------------ fake TTS (test double)
+class FakeTTS:
+    """TEST DOUBLE for Piper: writes a 22.05 kHz 'speech-like' WAV (syllable pulses of a tone), ~0.07 s per letter.
+    Proves our timeline / lip-sync / validation logic with real audio files — not voice quality."""
+
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    def check(self, language: str) -> str:
+        return "fake-voice"
+
+    def voices(self) -> list[str]:
+        return ["fake-voice"]
+
+    def synth(self, text: str, voice: str, out_wav) -> float:
+        import math
+        import wave
+        from array import array
+
+        self.calls.append(text)
+        sr = 22050
+        n = int(sr * max(0.6, 0.07 * len(text.replace(" ", ""))))
+        a = array("h", (int(9000 * abs(math.sin(math.pi * i / (sr * 0.18))) * math.sin(2 * math.pi * 180 * i / sr)) for i in range(n)))
+        with wave.open(str(out_wav), "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(sr)
+            w.writeframes(a.tobytes())
+        return n / sr
+
+
+def real_piper_dir():
+    """Folder with a real Piper voice for the optional real-voice test (env UWB_PIPER_VOICES), else None."""
+    import importlib.util
+    import os
+    from pathlib import Path
+
+    d = os.environ.get("UWB_PIPER_VOICES")
+    if d and importlib.util.find_spec("piper") and list(Path(d).glob("*.onnx")):
+        return Path(d)
+    return None

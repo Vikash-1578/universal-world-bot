@@ -61,8 +61,12 @@ async def open_project(target, hub, pid: int) -> None:
              f"Scenes: {len(plan['scenes'])} · lambai ~{plan['seconds']:.0f}s",
              f"Final size: {p['settings'].get('aspect')} · {p['settings'].get('resolution')} · {p['settings'].get('fps')}fps"]
     lines += ["", *plan["warnings"][:8]] if plan["warnings"] else ["", "✅ Sab characters aur jagah cast hain."]
-    lines += ["", "ℹ️ Abhi video me awaaz nahi hai (khaali audio track). Awaaz + subtitles Milestone 8 me aayenge.",
-              "Characters bolte waqt halke hilte hain; 'talk' expression image ho to munh bhi chalega."]
+    lang = p["settings"].get("language", "hindi")
+    try:
+        lines += ["", f"🎤 Awaaz: {hub.tts.check(lang)} (laptop par, free) — har character ki alag pitch/speed"]
+    except HubError as e:
+        lines += ["", "🎤 Awaaz: ❌ " + e.user_message]
+    lines.append("Bolte waqt munh khulta-band hota hai (awaaz ke saath); body saans, jhoolna, sir hilana, jhukna karti hai.")
     done = anim_jobs.exports(hub, pid, 1)
     kb = [[B(text="🖼 Pehla scene dekho (photo)", callback_data=make("an", "still", pid))],
           [B(text="👀 Preview video (360p, jaldi)", callback_data=make("an", "go", pid, "preview"))],
@@ -100,13 +104,17 @@ async def send_video(message: Message, hub, asset_id: int) -> None:
     if not path.exists():
         await message.answer("⚠️ Video file laptop par nahi mili (shayad delete hui).", parse_mode=None)
         return
-    caption = f"🎬 {meta.get('quality')} · {meta.get('width')}x{meta.get('height')} · {meta.get('seconds', 0):.0f}s (awaaz M8 me)"
+    caption = (f"🎬 {meta.get('quality')} · {meta.get('width')}x{meta.get('height')} · {meta.get('seconds', 0):.0f}s"
+               + (" · 🔇 bina awaaz (purani video)" if meta.get("silent_audio", True) else f" · 🎤 {meta.get('lines', 0)} lines"))
     if path.stat().st_size > TG_LIMIT:
         await message.answer(f"{caption}\nFile {path.stat().st_size // (1024 * 1024)} MB hai — Telegram bot 50 MB se badi file nahi bhej sakta.\n"
                              f"Laptop par yahan hai:\n{path}", parse_mode=None)
         return
     await message.answer_video(FSInputFile(path), caption=caption, width=meta.get("width"), height=meta.get("height"),
                                duration=int(meta.get("seconds") or 0), supports_streaming=True, parse_mode=None)
+    srt = hub.settings.data_dir / meta["subtitles"] if meta.get("subtitles") else None
+    if srt is not None and srt.exists() and hasattr(message, "answer_document"):
+        await message.answer_document(FSInputFile(srt), caption="💬 Subtitles (.srt) — YouTube par upload ke saath lagao", parse_mode=None)
 
 
 @router.callback_query(F.data.func(lambda d: (c := parse(d)) is not None and c.area == "an"))
@@ -197,6 +205,9 @@ class VideoSender:
 
             async def answer_video(self, video, **kw):
                 return await self.bot.send_video(self.chat_id, video, **kw)
+
+            async def answer_document(self, doc, **kw):
+                return await self.bot.send_document(self.chat_id, doc, **kw)
 
         try:
             await send_video(_Target(self.hub.bot, job["chat_id"]), self.hub, out["asset_id"])  # type: ignore[arg-type]

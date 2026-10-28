@@ -10,6 +10,7 @@ Timing: until Milestone 8 adds voices, each spoken line gets an estimated time f
 from __future__ import annotations
 
 import io
+from pathlib import Path
 import re
 from typing import TYPE_CHECKING, Any
 
@@ -157,20 +158,25 @@ def build(hub: "Hub", project_id: int, quality: str = "preview") -> dict[str, An
                 seen_actor.add(name)
             actors.append(a)
         t = 1.2 if any(a.get("enter") for a in actors) else 0.5
-        talks = []
+        lead = t
+        talks, lines = [], []
         for ln in sc.get("dialogue", []):
             if ln.get("kind") == "action" or not (ln.get("text") or "").strip():
                 continue
             d = line_seconds(ln["text"])
             spk = ln.get("speaker") or ""
-            if ln.get("kind") == "dialogue" and spk in names:
-                direction = ln.get("direction") or (cam.get("emotions") or {}).get(spk, "")
+            is_actor = ln.get("kind") == "dialogue" and spk in names
+            direction = (ln.get("direction") or (cam.get("emotions") or {}).get(spk, "")) if is_actor else ""
+            lines.append({"speaker": spk if is_actor else (spk or "Narrator"), "text": ln["text"].strip(), "actor": is_actor,
+                          "emotion": emotion_of(direction), "action": action_of(direction)})
+            if is_actor:  # estimate only; the render job replaces it with the real voice timing
                 talks.append({"actor": spk, "start": round(t, 3), "end": round(t + d, 3), "emotion": emotion_of(direction),
-                              "action": action_of(direction)})
+                              "action": action_of(direction), "text": ln["text"].strip()})
             t += d + GAP
         duration = round(min(MAX_SCENE, max(float(sc.get("duration_seconds") or 0), t + 0.5, 2.0)), 2)
         trans = (cam.get("transition") or "cut").lower()
-        out_scenes.append({"n": idx + 1, "scene_id": sc["id"], "background": bg, "actors": actors, "talks": talks, "duration": duration,
+        out_scenes.append({"n": idx + 1, "scene_id": sc["id"], "background": bg, "actors": actors, "talks": talks, "lines": lines,
+                           "lead": lead, "duration": duration,
                            "camera": camera_of(cam.get("movement", "")), "mood": mood,
                            "fade": trans in ("fade", "dissolve") or idx in (0, len(scenes) - 1)})
     return {"project_id": project_id, "quality": quality, "width": w, "height": h, "fps": fps, "crf": q["crf"],
@@ -199,13 +205,20 @@ def load_scene(hub: "Hub", sc: dict, fps: int = 25) -> puppet.PuppetScene:
         variants = {k: img(v).convert("RGBA") for k, v in (a.get("variants") or {}).items()}
         actors.append(puppet.Actor(id=a["id"], sprite=sprite, size=a.get("size", "medium"), x=a["x"], enter=a.get("enter"),
                                    variants=variants))
-    talks = [puppet.Talk(k["actor"], k["start"], k["end"], k.get("emotion", ""), k.get("action", "")) for k in sc["talks"]]
+    talks = [puppet.Talk(k["actor"], k["start"], k["end"], k.get("emotion", ""), k.get("action", ""), k.get("text", ""))
+             for k in sc["talks"]]
+    if sc.get("audio"):  # real voice: mouth + bounce follow the actual loudness of the scene audio
+        from app.storage.files import safe_join
+
+        env = puppet.envelope(safe_join(data_dir, *sc["audio"].split("/")) if not Path(sc["audio"]).is_absolute() else Path(sc["audio"]), fps)
+    else:
+        env = talk_envelope(sc, fps)
     return puppet.PuppetScene(background=bg, actors=actors, talks=talks, duration=sc["duration"], camera=sc["camera"],
-                              mood=sc["mood"], env=talk_envelope(sc, fps), fade=sc["fade"])
+                              mood=sc["mood"], env=env, fade=sc["fade"])
 
 
 def talk_envelope(sc: dict, fps: int) -> list[float]:
-    """Stand-in loudness (0..1 per frame) until real voices exist: a syllable-like pulse while someone speaks."""
+    """Only for the quick photo (no audio yet): a syllable-like pulse while someone speaks. Videos use real audio."""
     import math
 
     n = max(1, int(round(sc["duration"] * fps)))

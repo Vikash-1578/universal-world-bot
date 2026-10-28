@@ -169,6 +169,19 @@ def check_blender(s: Settings) -> Check:
     return Check("Blender", OK, first, data={"blender": exe})
 
 
+def check_voice(s: Settings) -> Check:
+    from app.audio.tts import PiperTTS, piper_installed
+
+    if not piper_installed():
+        return Check("Awaaz (Piper)", WARN, "install nahi hai — video nahi banegi", "scripts\\install.ps1 -SkipConfig chalao.")
+    vdir = Path(s.raw.get("tts", {}).get("voices_dir") or (s.data_dir / "models" / "piper"))
+    v = PiperTTS(vdir).voices()
+    if not v:
+        return Check("Awaaz (Piper)", WARN, "awaaz file nahi mili",
+                     "venv\\Scripts\\python -m piper.download_voices hi_IN-pratham-medium --download-dir data\\models\\piper")
+    return Check("Awaaz (Piper)", OK, ", ".join(v[:3]), data={"voices": v})
+
+
 def check_database(s: Settings) -> Check:
     try:
         from app.storage.db import MIGRATIONS, Database
@@ -222,6 +235,7 @@ def run_all(s: Settings, include_slow: bool = True) -> list[Check]:
     checks = [check_python(), check_cpu(), check_ram(), check_disk(s), check_gpu(), check_ffmpeg(s)]
     if include_slow:
         checks.append(check_blender(s))
+    checks.append(check_voice(s))
     checks.append(check_database(s))
     checks += check_config(s)
     return checks

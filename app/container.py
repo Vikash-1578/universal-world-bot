@@ -3,6 +3,7 @@ they never touch renderers or AI providers directly."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from app.core.config import Settings
@@ -28,6 +29,7 @@ class Hub:
     storyboards: Any = None
     library: Any = None
     imagegen: Any = None
+    tts: Any = None
     extra: dict[str, Any] = field(default_factory=dict)
     status: dict[str, str] = field(default_factory=dict)
     bot: Any = None
@@ -86,6 +88,9 @@ def build_hub(settings: Settings) -> Hub:
     comfy = ComfyUI(img_cfg.get("comfyui_url", "http://127.0.0.1:8188"), img_cfg.get("checkpoint", ""), int(img_cfg.get("steps", 24)))
     cf = CloudflareImages(settings.key("cf_account_id", "cloudflare_account_id"), settings.key("cf_api_token", "cloudflare_api_token", "cloudflare"))
     hub.imagegen = ImageRouter(comfy, cf, lambda: hub.cloud_enabled, lambda: hub.db.get_setting("ai_order", "local") == "cloud")
+    from app.audio.tts import PiperTTS
+
+    hub.tts = PiperTTS(Path(settings.raw.get("tts", {}).get("voices_dir") or (settings.data_dir / "models" / "piper")))
     from app.pipelines import register_all  # job handlers for each milestone
 
     from app.telegram.conversations.state import Conversations

@@ -85,3 +85,61 @@ def check(info: dict, *, width: int | None = None, height: int | None = None, fp
     if max_seconds and d > max_seconds:
         problems.append(f"video lambi hai ({d:.0f}s > {max_seconds:.0f}s)")
     return problems
+
+
+async def _decoded_seconds(ffmpeg: str, path: str, sel: str) -> float:
+    """Decode one stream fully and read the last 'time=' — works without ffprobe."""
+    code, _, err = await _run([ffmpeg, "-hide_banner", "-stats", "-i", path, "-map", sel, "-f", "null", "-"], timeout=300)
+    times = re.findall(r"time=(\d+):(\d+):([\d.]+)", err)
+    if code != 0 or not times:
+        return 0.0
+    hh, mm, ss = times[-1]
+    return int(hh) * 3600 + int(mm) * 60 + float(ss)
+
+
+async def loudness(settings: Settings, path: str | Path) -> dict[str, float]:
+    ffmpeg = find_ffmpeg(settings)
+    if not ffmpeg:
+        return {}
+    _, _, err = await _run([ffmpeg, "-hide_banner", "-i", str(path), "-map", "0:a:0", "-af", "volumedetect", "-f", "null", "-"], timeout=300)
+    out = {}
+    for k in ("mean_volume", "max_volume"):
+        m = re.search(k + r": (-?[\d.]+) dB", err)
+        if m:
+            out[k] = float(m.group(1))
+    return out
+
+
+async def check_av(settings: Settings, path: str | Path, *, expected_seconds: float | None = None,
+                   srt_text: str | None = None, min_max_db: float = -40.0, tolerance: float = 0.25) -> tuple[list[str], dict]:
+    """Audio / video / subtitle timeline checks: silent audio, audio-vs-video length mismatch, length vs the planned
+    timeline, and subtitles that run past the end. Returns (problems, measurements)."""
+    ffmpeg = find_ffmpeg(settings)
+    problems: list[str] = []
+    if not ffmpeg:
+        return ["FFmpeg nahi mila — awaaz check nahi ho saka"], {}
+    path = str(path)
+    v = await _decoded_seconds(ffmpeg, path, "0:v:0")
+    a = await _decoded_seconds(ffmpeg, path, "0:a:0")
+    lv = await loudness(settings, path)
+    m = {"video_seconds": round(v, 3), "audio_seconds": round(a, 3), **lv}
+    if lv.get("max_volume", -120.0) < min_max_db:
+        problems.append(f"awaaz khaali hai (silent, max {lv.get('max_volume', -120):.0f} dB)")
+    if not a:
+        problems.append("audio stream padhi nahi gayi")
+    elif abs(v - a) > tolerance:
+        problems.append(f"audio ({a:.2f}s) aur video ({v:.2f}s) ki lambai alag hai")
+    if expected_seconds and abs(v - expected_seconds) > max(tolerance, 0.02 * expected_seconds):
+        problems.append(f"video {v:.2f}s hai, timeline {expected_seconds:.2f}s thi")
+    if srt_text is not None:
+        from app.audio.timeline import parse_srt
+
+        spans = parse_srt(srt_text)
+        m["subtitles"] = len(spans)
+        if not spans:
+            problems.append("subtitles khaali hain")
+        elif spans[-1][1] > v + 0.05:
+            problems.append("subtitles video ke khatam hone ke baad tak chal rahe hain")
+        elif any(b <= a2 for a2, b in spans):
+            problems.append("subtitle timing galat (end <= start)")
+    return problems, m

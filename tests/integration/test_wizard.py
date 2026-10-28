@@ -1,7 +1,7 @@
 """🎬 Nayi video guided flow through Telegram buttons. Telegram, the AI writer and the image AI are TEST DOUBLES;
 database, scheduler, casting and the job chain are real."""
 from app.telegram.callbacks.codec import make
-from tests.helpers import TempDirCase, buttons, cb_update, feed, make_bot_and_dp, make_hub, msg_update, texts
+from tests.helpers import FakeTTS, TempDirCase, buttons, cb_update, feed, make_bot_and_dp, make_hub, msg_update, texts
 from tests.unit.test_library import background, figure_on_green
 from tests.unit.test_script_storyboard import SCRIPT, FakeLLM
 
@@ -26,6 +26,7 @@ class WizardTests(TempDirCase):
         self.hub.llm = FakeLLM()
         self.hub.scripts.llm = self.hub.storyboards.llm = self.hub.llm
         self.hub.imagegen = FakeImages()
+        self.hub.tts = FakeTTS()
         self.bot, self.dp, self.sess = make_bot_and_dp(self.hub)
 
     async def asyncTearDown(self):

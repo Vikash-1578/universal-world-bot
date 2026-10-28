@@ -151,6 +151,7 @@ class Talk:
     end: float
     emotion: str = ""
     action: str = ""
+    text: str = ""
 
 
 @dataclass
@@ -217,7 +218,7 @@ class Stage:
         n = 0
         for k in sc.talks:
             if k.end - k.start >= 1.0:
-                self.shots[id(k)] = "close" if n % 3 != 2 else "medium"
+                self.shots[id(k)] = "medium"  # keep the body in frame so its motion is visible
                 n += 1
         env = sc.env or []
         self.env = [max(env[max(0, i - 1):i + 2]) if env else 0.0 for i in range(len(env))]  # smoothed
@@ -236,76 +237,114 @@ class Stage:
                 emo = k.emotion
         return emo
 
-    def _leaned(self, img: Image.Image, key: tuple, angle: int) -> Image.Image:
+    def _leaned(self, img: Image.Image, key: tuple, angle: float) -> Image.Image:
+        angle = round(angle * 2) / 2  # 0.5 degree steps
         if not angle:
             return img
-        k = key + (angle,)
+        k = key + (round(key[4] * 2) / 2, angle)
         out = self.lean.get(k)
         if out is None:
             out = img.rotate(angle, resample=Image.BICUBIC, center=(img.width / 2, img.height))
-            if len(self.lean) < 200:
+            if len(self.lean) < 400:
                 self.lean[k] = out
         return out
 
-    def frame(self, t: float, idx: int) -> Image.Image:
+    # ------------------------------------------------------------------ motion
+    def pose_at(self, t: float, idx: int) -> dict[str, dict]:
+        """Per-actor pose for this moment (also used by tests): position offsets, body lean, head tilt, mouth state.
+
+        Motion works with a single whole-body picture: breathing, weight shift / sway (whole body pivots on the feet),
+        idle head movement, and while speaking: head nods + lean toward the listeners + voice-driven bounce, plus
+        line-type gestures (hop on '!', head tilt on '?', shake when angry, sink when sad). Pose / expression
+        pictures are used when the character has them. The artwork itself is never stretched."""
         from app.animation.two_d.rig import leg_phase
 
         sc = self.sc
-        canvas = self.bg.copy()
         tk = self.talk_at(t)
         env = self.env[idx] if idx < len(self.env) else 0.0
-        boxes: dict[str, tuple[float, float, float]] = {}
+        centre = sum(a.x for a in sc.actors) / max(1, len(sc.actors))
+        out: dict[str, dict] = {}
         for i, a in enumerate(sc.actors):
             rig = self.rigs[a.id]
+            hgt = self.heights[a.id]
+            ph = i * 1.7 + (sum(map(ord, a.id)) % 7) * 0.37  # each actor moves a bit differently
             tx = a.x * self.sw
-            dx = 0.0
-            dy = math.sin(t * math.pi + i) * self.sh * 0.004  # breathing
+            dx = math.sin(t * 2 * math.pi / 5.2 + ph) * hgt * 0.018            # weight shift
+            dy = -abs(math.sin(t * 2 * math.pi / 3.4 + ph)) * hgt * 0.012      # breathing rise
+            lean = math.sin(t * 2 * math.pi / 5.2 + ph) * 1.6                  # sway with the weight shift (degrees)
+            tilt = math.sin(t * 2 * math.pi / 4.1 + ph) * 2.5                  # idle head movement
             emo = self.emotion_of(a.id, t)
             face = emo if emo in rig.var else "base"
-            pose, mouth, leg, tilt, lean = "base", "closed", 0, 0, 0
+            pose, mouth, leg = "base", "closed", 0
             walking = bool(a.enter and t < self.walk)
+            speaking = tk is not None and tk.actor == a.id and not walking
             if walking:
                 p = _ease(t / self.walk)
                 start = -rig.cw * 0.6 if a.enter == "left" else self.sw + rig.cw * 0.6
                 tx = start + (tx - start) * p
+                lean = 0.0
                 if rig.has_legs():
                     leg = leg_phase(t)
-                    dy = -abs(math.sin(t * math.pi * 2.2)) * self.sh * 0.008
+                    dy = -abs(math.sin(t * math.pi * 2.2)) * hgt * 0.02
                 else:
                     step = math.sin(t * math.pi * 4)
-                    dy = -abs(step) * self.sh * 0.025
-                    lean = 3 if step > 0 else -3
-            if tk is not None and tk.actor == a.id:
+                    dy = -abs(step) * hgt * 0.04
+                    lean = 3.0 if step > 0 else -3.0
+            elif speaking:
                 lt = t - tk.start
                 span = max(0.1, tk.end - tk.start)
+                toward = 1.0 if centre > a.x else -1.0 if centre < a.x else 0.0
+                lean += toward * 2.5 * _ease(min(1.0, lt / 0.4, (tk.end - t) / 0.4))
+                tilt = 4.5 * math.sin(lt * 5.2) + 3.0 * env                       # talking head
+                dy -= env * hgt * 0.025                                            # voice-driven bounce
                 if rig.has_mouth():
-                    mouth = "open" if env > 0.55 else "half" if env > 0.22 else "closed"
-                else:
-                    dy -= env * self.sh * 0.02
-                tilt = int(round(1.6 * math.sin(t * 2.6 + i)))
-                act = tk.action
+                    mouth = "open" if env > 0.55 else "half" if env > 0.2 else "closed"
+                act = tk.action or ("jump" if tk.text.rstrip().endswith("!") else "tilt" if tk.text.rstrip().endswith("?") else "")
                 if act == "wave" and "wave" in rig.var:
                     pose = "wave" if int(lt / 0.3) % 2 == 0 else "base"
                 elif act in ("point", "explain") and act in rig.var:
                     pose = act
-                elif not act and "explain" in rig.var and 0.2 * span < lt < 0.8 * span and int(tk.start * 10) % 2 == 1:
+                elif not act and "explain" in rig.var and 0.2 * span < lt < 0.8 * span:
                     pose = "explain"
-                if act == "jump" and lt < 0.7:
-                    dy -= math.sin(math.pi * lt / 0.7) * self.sh * 0.09
-                elif act == "shake" and lt < 1.2:
-                    dx = math.sin(lt * 45) * self.sw * 0.006
+                if act == "jump" and lt < 0.6:
+                    dy -= math.sin(math.pi * lt / 0.6) * hgt * 0.06
+                elif act == "tilt":
+                    tilt += 6.0 * _ease(min(1.0, lt / 0.4))
+                elif act == "shake" or emo == "angry":
+                    dx += math.sin(lt * 38) * hgt * 0.008
                 elif act == "nod" and lt < 0.9:
-                    tilt = int(round(4 * math.sin(lt * math.pi * 3.3)))
-            elif not walking and "blink" in rig.var and face == "base" and (t + i * 1.3) % 3.7 < 0.13:
+                    tilt = 5 * math.sin(lt * math.pi * 3.3)
+                if emo == "happy":
+                    dy -= abs(math.sin(lt * 7)) * hgt * 0.012
+                elif emo == "sad":
+                    dy += hgt * 0.01
+                    lean -= toward * 1.5
+            elif tk is not None:  # listening: look toward the speaker, small nods
+                spk = next((b for b in sc.actors if b.id == tk.actor), None)
+                if spk is not None:
+                    lean += (1.2 if spk.x > a.x else -1.2)
+                    tilt += 2.0 * math.sin((t - tk.start) * 3.0)
+            if not walking and not speaking and "blink" in rig.var and face == "base" and (t + i * 1.3) % 3.7 < 0.13:
                 face = "blink"
             if emo == "scared" and not walking:
-                dx += math.sin(t * 60 + i) * self.sw * 0.002
-            key = (pose, face, mouth, leg, tilt)
-            img = self._leaned(rig.compose(*key), key, lean)
-            x = int(tx + dx - img.width / 2)
-            y = int(self.ground - img.height + dy)
+                dx += math.sin(t * 60 + i) * hgt * 0.004
+            out[a.id] = {"x": tx + dx, "dy": dy, "lean": lean, "tilt": tilt, "mouth": mouth, "pose": pose, "face": face,
+                         "leg": leg, "speaking": speaking, "walking": walking}
+        return out
+
+    def frame(self, t: float, idx: int) -> Image.Image:
+        sc = self.sc
+        canvas = self.bg.copy()
+        tk = self.talk_at(t)
+        boxes: dict[str, tuple[float, float, float]] = {}
+        for a_id, st in self.pose_at(t, idx).items():
+            rig = self.rigs[a_id]
+            key = (st["pose"], st["face"], st["mouth"], st["leg"], st["tilt"])
+            img = self._leaned(rig.compose(*key), key, st["lean"])
+            x = int(st["x"] - img.width / 2)
+            y = int(self.ground - img.height + st["dy"])
             canvas.paste(img, (x, y), img)
-            boxes[a.id] = (tx + dx, self.ground - self.heights[a.id] + dy, self.heights[a.id])
+            boxes[a_id] = (st["x"], self.ground - self.heights[a_id] + st["dy"], self.heights[a_id])
         out = self._camera(canvas, t, tk, boxes)
         if sc.fade:
             if t < FADE:

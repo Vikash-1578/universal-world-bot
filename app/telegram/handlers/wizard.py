@@ -144,11 +144,76 @@ async def chars(target, hub, pid: int) -> None:
     await show(target, "\n".join(lines), KB(inline_keyboard=kb))
 
 
+def speakers(hub, pid: int) -> list[str]:
+    s = hub.scripts.approved(pid) or hub.scripts.latest(pid)
+    return parser.parse(s["content"]).characters if s else []
+
+
 async def voices(target, hub, pid: int) -> None:
-    await show(target, "🎤 Step 3: Awaaz\n\n"
-                       "Har character ki alag awaaz (ek hi awaaz ka pitch / speed / tone badal ke) — ye hissa abhi ban raha hai (Milestone 8).\n"
-                       "Abhi video bina awaaz ke banegi.",
-               KB(inline_keyboard=[[B(text="▶ Aage (abhi bina awaaz)", callback_data=make("w", "check", pid))], nav(back=f"w|chars|{pid}")]))
+    from app.audio import tts as T
+    from app.core.errors import HubError
+
+    lang = hub.projects.get_project(pid)["settings"].get("language", "hindi")
+    roles = speakers(hub, pid)
+    cast = hub.library.casting(pid)
+    hints = {r: hub.library.get(cast[r]["item_id"], cast[r]["version"])["profile"] for r in roles if r in cast}
+    vmap = T.assign(hub.db, pid, roles, hints)
+    try:
+        base = hub.tts.check(lang)
+        head = f"Awaaz engine: Piper ({base}) — laptop par, free, bina internet ke."
+        ok = True
+    except HubError as e:
+        head, ok = "❌ " + e.user_message, False
+    lines = ["🎤 Step 3: Awaaz", "", head, "Ek hi awaaz se har character ki alag awaaz (pitch + speed badal ke):", ""]
+    kb: list[list[B]] = []
+    for i, r in enumerate(roles[:12]):
+        st = T.STYLES[vmap.get(r, 0) % len(T.STYLES)]
+        lines.append(f"🧍 {r}: {st.name}")
+        row = [B(text=f"🔄 {r[:14]}", callback_data=make("w", "vstyle", pid, i))]
+        if ok:
+            row.append(B(text="🔊 Suno", callback_data=make("w", "vsample", pid, i)))
+        kb.append(row)
+    lines.append(f"📖 Narrator: {T.NARRATOR.name}")
+    kb.append([B(text="✅ Awaaz theek, aage ▶", callback_data=make("w", "check", pid))] if ok else
+              [B(text="🔄 Dobara check karo", callback_data=make("w", "voice", pid))])
+    kb.append(nav(back=f"w|chars|{pid}", refresh=f"w|voice|{pid}"))
+    await show(target, "\n".join(lines), KB(inline_keyboard=kb))
+
+
+async def _voice_sample(cb: CallbackQuery, hub, pid: int, idx: int) -> None:
+    import asyncio
+    import tempfile
+
+    from aiogram.types import FSInputFile
+
+    from app.audio import tts as T
+    from app.observability.diagnostics import find_ffmpeg
+
+    roles = speakers(hub, pid)
+    if idx >= len(roles):
+        raise ValueError("stale")
+    role = roles[idx]
+    lang = hub.projects.get_project(pid)["settings"].get("language", "hindi")
+    voice = hub.tts.check(lang)
+    s = hub.scripts.approved(pid) or hub.scripts.latest(pid)
+    line = next((ln.text for sc in parser.parse(s["content"]).scenes for ln in sc.lines if ln.kind == "dialogue" and ln.speaker == role),
+                "नमस्ते!" if lang != "english" else "Hello!")
+    ffmpeg = find_ffmpeg(hub.settings)
+    with tempfile.TemporaryDirectory() as td:
+        raw, done, ogg = Path(td) / "r.wav", Path(td) / "d.wav", Path(td) / "v.ogg"
+
+        def work() -> None:
+            import subprocess
+
+            hub.tts.synth(line[:200], voice, raw)
+            T.apply_style(ffmpeg, raw, done, T.style_of(T.voice_map(hub.db, pid), role))
+            subprocess.run([ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-i", str(done), "-c:a", "libopus", "-b:a", "48k", str(ogg)],
+                           capture_output=True, timeout=60)
+
+        await asyncio.to_thread(work)
+        m = _m(cb)
+        if m and ogg.exists():
+            await m.answer_voice(FSInputFile(ogg), caption=f"{role}: {line[:80]}", parse_mode=None)
 
 
 async def final_check(target, hub, pid: int) -> None:
@@ -165,7 +230,7 @@ async def final_check(target, hub, pid: int) -> None:
              f"2. Scenes: " + ("⏳ ban rahe hain…" if busy else f"✅ {len(scenes)} scenes · ~{sum(x['duration_seconds'] for x in scenes):.0f}s"
                                + (" (approved)" if sb.get("status") == "approved" else "") if scenes else "❌ abhi nahi bane"),
              f"3. Characters & jagah: {'✅ sabki image hai' if not miss else '❌ ' + str(len(miss)) + ' ki image nahi'}",
-             "4. Awaaz: ⏳ Milestone 8 (abhi bina awaaz)",
+             f"4. Awaaz: {_voice_status(hub, p)}",
              f"5. Size: {p['settings'].get('aspect')} · {p['settings'].get('resolution')} · {p['settings'].get('fps')}fps"]
     kb: list[list[B]] = []
     if scenes:
@@ -180,6 +245,15 @@ async def final_check(target, hub, pid: int) -> None:
         kb.append([B(text="📤 Bani videos", callback_data=make("an", "out", pid))])
     kb.append(nav(back=f"w|chars|{pid}", refresh=f"w|check|{pid}"))
     await show(target, "\n".join(lines), KB(inline_keyboard=kb))
+
+
+def _voice_status(hub, p: dict) -> str:
+    from app.core.errors import HubError
+
+    try:
+        return f"✅ {hub.tts.check(p['settings'].get('language', 'hindi'))} (har character ki alag pitch/speed)"
+    except HubError:
+        return "❌ Piper / awaaz file nahi mili — Step 3 me fix ke steps"
 
 
 async def go_next(target, hub, pid: int) -> None:
@@ -354,6 +428,20 @@ async def cb_wizard(cb: CallbackQuery, hub) -> None:
         elif a == "voice":
             await answer(cb)
             await voices(cb, hub, c.int(0))
+        elif a == "vstyle":
+            from app.audio import tts as T
+
+            pid, idx = c.int(0), c.int(1)
+            roles = speakers(hub, pid)
+            if idx >= len(roles):
+                raise ValueError("stale")
+            cur = T.voice_map(hub.db, pid).get(roles[idx], 0)
+            T.set_style(hub.db, pid, roles[idx], cur + 1)
+            await answer(cb, f"{roles[idx]}: {T.STYLES[(cur + 1) % len(T.STYLES)].name}")
+            await voices(cb, hub, pid)
+        elif a == "vsample":
+            await answer(cb, "Awaaz bana raha hoon…")
+            await _voice_sample(cb, hub, c.int(0), c.int(1))
         elif a == "check":
             await answer(cb)
             await final_check(cb, hub, c.int(0))
