@@ -45,7 +45,7 @@ async def show_project(target, hub, pid: int) -> None:
     p = hub.projects.get_project(pid)
     n = len(hub.projects.versions(pid))
     rows = [
-        [B(text="📜 Script", callback_data=make("m", "script")), B(text="🎞 Storyboard", callback_data=make("m", "storyboard"))],
+        [B(text="📜 Script", callback_data=make("ss", "open", pid)), B(text="🎞 Storyboard", callback_data=make("sb", "open", pid))],
         [B(text="⚙️ Settings", callback_data=make("p", "set", pid)), B(text="✏️ Naam badlo", callback_data=make("p", "rename", pid))],
         [B(text="💾 Version save", callback_data=make("p", "save", pid)), B(text="🕘 Versions", callback_data=make("p", "vers", pid))],
         [B(text="⏳ Is project ke jobs", callback_data=make("j", "list", 0, pid))],

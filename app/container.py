@@ -23,6 +23,9 @@ class Hub:
     bus: EventBus
     projects: ProjectService
     jobs: JobService
+    llm: Any = None
+    scripts: Any = None
+    storyboards: Any = None
     extra: dict[str, Any] = field(default_factory=dict)
     status: dict[str, str] = field(default_factory=dict)
     bot: Any = None
@@ -63,6 +66,15 @@ def build_hub(settings: Settings) -> Hub:
         jobs=JobService(db, bus, settings.data_dir / "work", heavy_slots=settings.max_heavy_workers,
                         light_slots=settings.max_light_workers),
     )
+    from app.models.llm import LLM
+    from app.scripts.service import ScriptService
+    from app.storyboards.service import StoryboardService
+
+    llm_cfg = settings.raw.get("llm", {})
+    hub.llm = LLM(settings.keys, lambda: hub.cloud_enabled, models=llm_cfg.get("models"),
+                  ollama_url=llm_cfg.get("ollama_url", "http://127.0.0.1:11434"), ollama_model=llm_cfg.get("ollama_model", ""))
+    hub.scripts = ScriptService(db, hub.projects, hub.llm)
+    hub.storyboards = StoryboardService(db, hub.projects, hub.scripts, hub.llm)
     from app.pipelines import register_all  # job handlers for each milestone
 
     from app.telegram.conversations.state import Conversations

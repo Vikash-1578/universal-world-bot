@@ -4,3 +4,4 @@ aiohttp>=3.10,<4
 Pillow>=10.4,<12
 psutil>=5.9,<8
 imageio-ffmpeg>=0.5,<1
+pypdf>=4,<7          # reading .pdf scripts (optional)

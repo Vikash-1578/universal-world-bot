@@ -15,13 +15,13 @@ they prove our own logic, not that Telegram/AI/Blender behave the same way on th
 | Logging with secret redaction, audit log | ✅ | |
 | SQLite + migrations + foreign keys + integrity check | ✅ | migrations/ |
 | Safe paths, upload validation | ✅ | |
-| Diagnostics (Python, CPU, RAM, disk, GPU, FFmpeg, Blender, DB, config) | ✅ | real check in container; **not yet run on the owner's laptop** |
-| install.ps1 / start.ps1 / diagnose.ps1 | 🟡 | written; **not yet run on Windows** |
+| Diagnostics (Python, CPU, RAM, disk, GPU, FFmpeg, Blender, DB, config) | ✅ | verified on owner's laptop 2026-10-28 (8 OK, Blender missing) |
+| install.ps1 / start.ps1 / diagnose.ps1 | ✅ | verified on Windows 11 + Python 3.14 (2026-10-28); backup.ps1 comes in M10 |
 
 ## Milestone 2 — Telegram Dashboard and Projects
 | Item | Status | Notes |
 |---|---|---|
-| Main menu (17 sections, honest "coming in Milestone N") | ✅ | |
+| Main menu (17 sections, honest "coming in Milestone N") | ✅ | owner-only gate confirmed live on Telegram |
 | Create / list / open / rename / settings / archive projects | ✅ | tests/integration/test_dashboard.py |
 | Versioned, checksummed manifests | ✅ | |
 | Conversation state survives restart | ✅ | |
@@ -37,7 +37,7 @@ they prove our own logic, not that Telegram/AI/Blender behave the same way on th
 | Approval wait state | ✅ | |
 | Restart recovery | ✅ | tests/recovery/test_restart.py |
 | Live job cards in Telegram | ✅ | |
-| Self-test job (real FFmpeg render + probe) | ✅ | |
+| Self-test job (real FFmpeg render + probe) | ✅ | passed on owner's laptop (FFmpeg 9.0.2) |
 
 ## Milestone 4 — Script and Storyboard ⬜
 ## Milestone 5 — Character and Environment Studio ⬜

@@ -15,3 +15,11 @@ temp_retention_days = 7       # temporary render files older than this may be cl
 [tools]
 ffmpeg = ""                   # empty = auto-detect
 blender = ""
+
+[llm]
+# Local AI (free, private): install Ollama from ollama.com, then e.g. `ollama pull llama3.1:8b`
+ollama_url = "http://127.0.0.1:11434"
+ollama_model = ""             # empty = first installed model
+# Cloud model overrides (used only when Cloud AI is ON in Settings)
+# [llm.models]
+# groq = "llama-3.3-70b-versatile"

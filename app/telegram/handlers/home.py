@@ -19,6 +19,8 @@ HOME_TEXT = ("🌍 Universal World — Video Production Hub\n\n"
 HELP_TEXT = ("❓ Help\n\n"
              "• 📁 Projects — tumhare saare video projects. Kholo, naam/settings badlo, version save karo.\n"
              "• 🎬 New Production — naya project (2D cartoon / 3D Blender / images + narration).\n"
+             "• 📜 Script Studio — script bhejo (text/file/voice) ya AI se likhwao, versions, approve.\n"
+             "• 🎞 Storyboard — approved script se scenes; shot/jagah/time badlo, upar-neeche karo, phir approve.\n"
              "• ⏳ Job Queue — lambe kaam (render, awaaz...) yahan chalte hain. Pause, resume, cancel, retry.\n"
              "• ⚙️ Settings — Cloud AI on/off. Default OFF: koi paid/cloud service bina tumhari permission ke nahi chalegi.\n"
              "• 🩺 Diagnostics — laptop, GPU, FFmpeg, Blender, database ki jaanch + self-test video.\n\n"
@@ -32,7 +34,7 @@ def coming_soon(key: str) -> str:
     m = AVAILABLE[key]
     return (f"{label}\n\n🚧 Ye hissa Milestone {m} me banega. Abhi kaam nahi karta — "
             f"jab tak wo test na ho jaye, bot ise chalne wala nahi batayega.\n\n"
-            "Abhi chalne wale: Projects, New Production, Job Queue, Settings, Diagnostics, Help.")
+            "Abhi chalne wale: Projects, New Production, Script Studio, Storyboard, Job Queue, Settings, Diagnostics, Help.")
 
 
 @router.message(CommandStart())
@@ -67,6 +69,12 @@ async def cb_menu(cb: CallbackQuery, hub) -> None:
         if c.action == "diag":
             await answer(cb, "Jaanch chal rahi hai...")
             await show_diagnostics(cb, hub)
+            return
+        if c.action in ("script", "storyboard"):
+            from app.telegram.handlers.studio import pick_project
+
+            await answer(cb)
+            await pick_project(cb, hub, "ss" if c.action == "script" else "sb", 0)
             return
         if c.action in ("projects", "new", "jobs"):
             from app.telegram.handlers import jobs, projects

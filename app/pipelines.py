@@ -11,3 +11,6 @@ def register_all(hub: "Hub") -> None:
     from app.observability.selftest import register as reg_selftest
 
     reg_selftest(hub)
+    from app.scripts.jobs import register as reg_story
+
+    reg_story(hub)
