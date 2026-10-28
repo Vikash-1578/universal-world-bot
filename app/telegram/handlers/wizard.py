@@ -329,6 +329,7 @@ async def final_check(target, hub, pid: int) -> None:
              f"2. Scenes: " + ("⏳ ban rahe hain…" if busy else f"✅ {len(scenes)} scenes · ~{sum(x['duration_seconds'] for x in scenes):.0f}s"
                                + (" (approved)" if sb.get("status") == "approved" else "") if scenes else "❌ abhi nahi bane"),
              f"3. Characters & jagah: {'✅ sabki image hai' if not miss else '❌ ' + str(len(miss)) + ' ki image nahi'}",
+             "   Expressions: " + (", ".join(f"{r} {n}/7" for r, n in expression_status(hub, pid).items()) or "-"),
              f"4. Awaaz: {_voice_status(hub, p)}",
              f"5. Size: {p['settings'].get('aspect')} · {p['settings'].get('resolution')} · {p['settings'].get('fps')}fps"]
     kb: list[list[B]] = []
@@ -337,6 +338,8 @@ async def final_check(target, hub, pid: int) -> None:
                    B(text="🖼 Pehla scene (photo)", callback_data=make("an", "still", pid))])
     if not scenes and not busy and s:
         kb.append([B(text="🎞 Scenes banao", callback_data=make("w", "sbdraft", pid))])
+    if any(n < 7 for n in expression_status(hub, pid).values()):
+        kb.append([B(text="🎭 Sabke expressions banao (laptop AI)", callback_data=make("w", "packall", pid))])
     if s and scenes and not miss and not busy:
         kb.append([B(text="🎬 Sab sahi — Final video banao", callback_data=make("w", "final", pid))])
     done = anim_jobs.exports(hub, pid, 1)
@@ -344,6 +347,50 @@ async def final_check(target, hub, pid: int) -> None:
         kb.append([B(text="📤 Bani videos", callback_data=make("an", "out", pid))])
     kb.append(nav(back=f"w|chars|{pid}", refresh=f"w|check|{pid}"))
     await show(target, "\n".join(lines), KB(inline_keyboard=kb))
+
+
+def expression_status(hub, pid: int) -> dict[str, int]:
+    """role -> how many of the 7 expression faces exist (characters only)."""
+    from app.characters import pack
+
+    out = {}
+    for role, c in hub.library.casting(pid).items():
+        if c["kind"] != "character":
+            continue
+        it = hub.library.get(c["item_id"], c["version"])
+        out[role] = sum(1 for e in pack.ORDER if f"expr:{e}" in it["files"])
+    return out
+
+
+async def auto_pack(hub, pid: int, item_id: str | None, chat_id: int | None) -> int:
+    """Queue the expression faces for cast characters that have a picture but no faces yet (needs local ComfyUI).
+    Returns how many jobs were queued."""
+    from app.characters import pack
+
+    comfy = getattr(hub.imagegen, "comfy", None)
+    if comfy is None or not await comfy.available():
+        return 0
+    busy = {loads_inputs(j).get("item_id") for j in hub.jobs.list_jobs(active_only=True, limit=100) if j["job_type"] == pack.JOB}
+    n = 0
+    for role, c in hub.library.casting(pid).items():
+        if c["kind"] != "character" or (item_id and c["item_id"] != item_id) or c["item_id"] in busy:
+            continue
+        it = hub.library.get(c["item_id"])
+        todo = [e for e in pack.ORDER if f"expr:{e}" not in it["files"]]
+        if "main" not in it["files"] or not todo:
+            continue
+        hub.jobs.submit_job(pack.JOB, None, {"item_id": it["id"], "exprs": todo, "recast": {"project_id": pid, "role": role}}, 6,
+                            idempotency_key=f"autopack:{pid}:{it['id']}:{it['version']}", chat_id=chat_id,
+                            title=f"Expressions: {role[:24]}")
+        busy.add(it["id"])
+        n += 1
+    return n
+
+
+def loads_inputs(job: dict) -> dict:
+    from app.storage.db import loads
+
+    return loads(job.get("input_manifest") or "{}", {}) or {}
 
 
 def _voice_status(hub, p: dict) -> str:
@@ -613,6 +660,17 @@ async def cb_wizard(cb: CallbackQuery, hub) -> None:
             if not cur:
                 raise ValueError("stale")
             await start_pack(cb, hub, cur["item_id"], recast={"project_id": pid, "role": role})
+        elif a == "packall":
+            pid = c.int(0)
+            m = _m(cb)
+            n = await auto_pack(hub, pid, None, m.chat.id if m else None)
+            if not n:
+                await answer(cb, "ComfyUI chalu nahi hai ya sabke expressions pehle se ban rahe/bane hain", alert=True)
+                return
+            await answer(cb, f"{n} characters ke expressions ban rahe hain")
+            if m:
+                await m.answer(f"🎭 {n} characters ke 7-7 chehre (khush, dukhi, gussa, hairan, dara, bolta, palak) ban rahe hain.\n"
+                               "Har character ~3-7 min. Ban jaane par video me apne aap lagenge.", parse_mode=None)
         elif a == "vstyle":
             from app.audio import tts as T
 
@@ -774,6 +832,7 @@ class WizardNotifier:
                 await story_review(t, self.hub, pid)  # type: ignore[arg-type]
             elif job["job_type"] == "library_ai_image":
                 pid = int(inputs["wizard"])
+                await auto_pack(self.hub, pid, inputs.get("item_id"), job["chat_id"])  # faces right after the picture
                 waiting = [j for j in self.hub.jobs.list_jobs(active_only=True, limit=50) if j["job_type"] == "library_ai_image"]
                 if not waiting:
                     await chars(t, self.hub, pid)  # type: ignore[arg-type]

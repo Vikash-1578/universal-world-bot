@@ -142,3 +142,27 @@ class WizardTests(TempDirCase):
         ctx = role_context(self.hub, pid, "चिंटू")
         self.assertIn("खरगोश", ctx)  # the species comes from the narration, not from the name
         self.assertIn("आज मैं जीतूँगा", ctx)
+
+    async def test_expressions_auto_and_emotions_from_hindi_words(self):
+        from app.animation.two_d.planner import emotion_of
+        from app.characters import pack
+        from app.telegram.handlers.wizard import auto_pack, expression_status
+
+        self.assertEqual(emotion_of("चिंतित"), "scared")
+        self.assertEqual(emotion_of("शर्मिंदा होकर"), "sad")
+        self.assertEqual(emotion_of("प्यार से"), "happy")
+        pid = self.hub.projects.create_project("Faces", "2d")["id"]
+        it = self.hub.library.create_item("character", "Golu")
+        self.hub.library.add_image(it["id"], "main", figure_on_green())
+        self.hub.library.cast(pid, "Golu", it["id"])
+        self.assertEqual(expression_status(self.hub, pid), {"Golu": 0})
+
+        class Comfy:  # test double: "ComfyUI is running"
+            async def available(self):
+                return True
+
+        self.hub.imagegen.comfy = Comfy()
+        self.assertEqual(await auto_pack(self.hub, pid, None, 1001), 1)
+        self.assertEqual(await auto_pack(self.hub, pid, None, 1001), 0)  # not queued twice
+        jobs = [j for j in self.hub.jobs.list_jobs(limit=20) if j["job_type"] == pack.JOB]
+        self.assertEqual(len(jobs), 1)

@@ -27,11 +27,13 @@ MIN_LINE, GAP, MAX_SCENE = 1.3, 0.25, 45.0
 QUALITY = {"preview": {"short": 360, "fps": 12, "crf": 28}, "final": {"short": 1080, "fps": 0, "crf": 21}}
 
 EMOTION_WORDS = {
-    "happy": ("khush", "happy", "hans", "muskura", "excited", "खुश", "हँस", "हंस", "मुस्कु", "उत्साह"),
-    "sad": ("dukh", "sad", "udaas", " ro ", " rote", " rona", "दुख", "उदास", " रो"),
-    "angry": ("guss", "angry", "naraz", "गुस्स", "नाराज"),
-    "scared": (" dar", "darr", "scared", "ghabra", "डर", "घबरा"),
-    "surprised": ("hairan", "surprise", "chauk", "shock", "हैरान", "चौंक"),
+    "happy": ("khush", "happy", "hans", "muskura", "excited", "smil", "laugh", "pyaar", "खुश", "हँस", "हंस", "मुस्कु", "उत्साह",
+              "प्यार", "मज़े", "मजे", "शाबाश", "वाह"),
+    "sad": ("dukh", "sad", "udaas", " ro ", " rote", " rona", "sharminda", "sorry", "maaf", "दुख", "उदास", " रो", "शर्मिंद", "माफ़",
+            "माफ"),
+    "angry": ("guss", "angry", "naraz", "chilla", "गुस्स", "नाराज", "चिल्ला", "क्रोध"),
+    "scared": (" dar", "darr", "scared", "ghabra", "worried", "chintit", "pareshan", "डर", "घबरा", "चिंतित", "परेशान", "बाप रे"),
+    "surprised": ("hairan", "surprise", "chauk", "shock", "wow", "हैरान", "चौंक", "सच में"),
 }
 ACTION_WORDS = {
     "wave": ("haath hila", "wave", "हाथ हिला"), "jump": ("kood", "jump", "उछल", "कूद"),
@@ -167,10 +169,11 @@ def build(hub: "Hub", project_id: int, quality: str = "preview") -> dict[str, An
             spk = ln.get("speaker") or ""
             is_actor = ln.get("kind") == "dialogue" and spk in names
             direction = (ln.get("direction") or (cam.get("emotions") or {}).get(spk, "")) if is_actor else ""
+            emo = (emotion_of(direction) or emotion_of(ln["text"])) if is_actor else ""  # bracket first, then the words
             lines.append({"speaker": spk if is_actor else (spk or "Narrator"), "text": ln["text"].strip(), "actor": is_actor,
-                          "emotion": emotion_of(direction), "action": action_of(direction)})
+                          "emotion": emo, "action": action_of(direction)})
             if is_actor:  # estimate only; the render job replaces it with the real voice timing
-                talks.append({"actor": spk, "start": round(t, 3), "end": round(t + d, 3), "emotion": emotion_of(direction),
+                talks.append({"actor": spk, "start": round(t, 3), "end": round(t + d, 3), "emotion": emo,
                               "action": action_of(direction), "text": ln["text"].strip()})
             t += d + GAP
         duration = round(min(MAX_SCENE, max(float(sc.get("duration_seconds") or 0), t + 0.5, 2.0)), 2)

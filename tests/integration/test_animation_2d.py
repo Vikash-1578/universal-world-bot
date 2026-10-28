@@ -208,3 +208,22 @@ class AnimationTelegramTests(TempDirCase):
         self.assertIn("SendPhoto", [n for n, _ in self.sess.calls])
         await feed(self.bot, self.dp, cb_update(make("an", "out", self.pid)))
         self.assertIn("Abhi koi video nahi", texts(self.sess)[-1])
+
+
+class EmotionFromWordsTests(TempDirCase):
+    async def test_line_words_give_the_face_when_no_bracket(self):
+        hub = make_hub(self.tmp)
+        try:
+            pid = hub.projects.create_project("Emo", "2d")["id"]
+            v = hub.scripts.create_version(pid, "Title: T\n[Scene 1: Jungle, subah]\nGolu: Arre baap re, ye kya hua!\nTortu: (khush) Chalo!\n")
+            hub.scripts.approve(v["id"])
+            await hub.storyboards.generate_draft(pid, use_ai=False)
+            plan = planner.build(hub, pid)
+            emos = [t["emotion"] for t in plan["scenes"][0]["talks"]]
+            self.assertEqual(emos, ["", "happy"])  # Latin 'baap re' is not in the list; bracket wins for Tortu
+            v2 = hub.scripts.create_version(pid, "Title: T\n[Scene 1: Jungle, subah]\nगोलू: अरे बाप रे, ये क्या हुआ!\n")
+            hub.scripts.approve(v2["id"])
+            await hub.storyboards.generate_draft(pid, use_ai=False, replace_approved=True)
+            self.assertEqual(planner.build(hub, pid)["scenes"][0]["talks"][0]["emotion"], "scared")  # from the words
+        finally:
+            hub.db.close()
