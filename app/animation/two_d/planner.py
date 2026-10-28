@@ -182,15 +182,38 @@ def placeholder_figure(name: str, height: int = 600) -> Image.Image:
     w = int(height * 0.45)
     im = Image.new("RGBA", (w, height), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
-    hue = sum(name.encode("utf-8")) % 6
-    col = [(230, 120, 80), (90, 150, 230), (120, 190, 90), (200, 110, 200), (230, 190, 70), (90, 190, 190)][hue]
+    import hashlib
+
+    hue = hashlib.md5(name.encode("utf-8")).digest()[0] % 8
+    col = [(230, 120, 80), (90, 150, 230), (120, 190, 90), (200, 110, 200), (230, 190, 70), (90, 190, 190),
+           (240, 150, 170), (150, 120, 220)][hue]
     u = height / 100
     d.ellipse((w / 2 - 13 * u, 2 * u, w / 2 + 13 * u, 28 * u), fill=(245, 215, 180, 255), outline=(60, 40, 30, 255), width=max(1, int(u)))
     d.rectangle((w / 2 - 3 * u, 27 * u, w / 2 + 3 * u, 32 * u), fill=(245, 215, 180, 255))
     d.rounded_rectangle((w / 2 - 17 * u, 31 * u, w / 2 + 17 * u, 64 * u), radius=int(5 * u), fill=col + (255,))
     d.rectangle((w / 2 - 14 * u, 63 * u, w / 2 - 3 * u, 99 * u), fill=(60, 60, 70, 255))
     d.rectangle((w / 2 + 3 * u, 63 * u, w / 2 + 14 * u, 99 * u), fill=(60, 60, 70, 255))
+    _label(d, name, w / 2, 47 * u, int(7 * u), int(32 * u))  # role name on the shirt, so the owner knows who is who
     return im
+
+
+def _label(d: ImageDraw.ImageDraw, text: str, cx: float, cy: float, size: int, max_w: int) -> None:
+    from PIL import ImageFont
+
+    font = None
+    for cand in ("C:/Windows/Fonts/Nirmala.ttc", "C:/Windows/Fonts/arialbd.ttf", "DejaVuSans-Bold.ttf"):
+        try:
+            font = ImageFont.truetype(cand, size)
+            break
+        except OSError:
+            continue
+    if font is None:
+        font = ImageFont.load_default()
+    text = text[:10]
+    while size > 8 and d.textlength(text, font=font) > max_w and hasattr(font, "font_variant"):
+        size -= 2
+        font = font.font_variant(size=size)
+    d.text((cx, cy), text, fill=(255, 255, 255, 255), font=font, anchor="mm", stroke_width=max(1, size // 10), stroke_fill=(0, 0, 0, 255))
 
 
 def placeholder_background(mood: str) -> Image.Image:
