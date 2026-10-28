@@ -14,3 +14,6 @@ def register_all(hub: "Hub") -> None:
     from app.scripts.jobs import register as reg_story
 
     reg_story(hub)
+    from app.characters.jobs import register as reg_library
+
+    reg_library(hub)

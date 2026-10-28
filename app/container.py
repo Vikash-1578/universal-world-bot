@@ -26,6 +26,8 @@ class Hub:
     llm: Any = None
     scripts: Any = None
     storyboards: Any = None
+    library: Any = None
+    imagegen: Any = None
     extra: dict[str, Any] = field(default_factory=dict)
     status: dict[str, str] = field(default_factory=dict)
     bot: Any = None
@@ -75,6 +77,13 @@ def build_hub(settings: Settings) -> Hub:
                   ollama_url=llm_cfg.get("ollama_url", "http://127.0.0.1:11434"), ollama_model=llm_cfg.get("ollama_model", ""))
     hub.scripts = ScriptService(db, hub.projects, hub.llm)
     hub.storyboards = StoryboardService(db, hub.projects, hub.scripts, hub.llm)
+    from app.characters.service import LibraryService
+    from app.models.imagegen import ComfyUI
+
+    img_cfg = settings.raw.get("image", {})
+    hub.library = LibraryService(db, settings.data_dir)
+    hub.imagegen = ComfyUI(img_cfg.get("comfyui_url", "http://127.0.0.1:8188"), img_cfg.get("checkpoint", ""),
+                           int(img_cfg.get("steps", 24)))
     from app.pipelines import register_all  # job handlers for each milestone
 
     from app.telegram.conversations.state import Conversations

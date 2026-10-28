@@ -23,3 +23,9 @@ ollama_model = ""             # empty = first installed model
 # Cloud model overrides (used only when Cloud AI is ON in Settings)
 # [llm.models]
 # groq = "llama-3.3-70b-versatile"
+
+[image]
+# Local image AI (ComfyUI) for character / background pictures. Optional — you can always upload your own images.
+comfyui_url = "http://127.0.0.1:8188"
+checkpoint = ""               # e.g. "sd_xl_base_1.0.safetensors"; empty = first checkpoint ComfyUI has
+steps = 24

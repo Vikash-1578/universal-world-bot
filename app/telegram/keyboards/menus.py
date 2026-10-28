@@ -10,7 +10,7 @@ from app.telegram.callbacks.codec import make
 MAIN = [
     ("projects", "📁 Projects", 0), ("new", "🎬 New Production", 0),
     ("script", "📜 Script Studio", 0), ("storyboard", "🎞 Storyboard", 0),
-    ("characters", "🧍 Characters", 5), ("environments", "🏞 Environments", 5),
+    ("characters", "🧍 Characters", 0), ("environments", "🏞 Environments", 0),
     ("animation", "🎭 Animation", 6), ("audio", "🎤 Audio", 8),
     ("subtitles", "💬 Subtitles", 8), ("models", "🧠 Model Manager", 9),
     ("jobs", "⏳ Job Queue", 0), ("export", "📤 Render & Export", 6),
