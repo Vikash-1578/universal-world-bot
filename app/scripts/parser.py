@@ -13,10 +13,12 @@ from __future__ import annotations
 import re
 from dataclasses import asdict, dataclass, field
 
-NARRATOR_NAMES = {"narrator", "narration", "kathavachak", "kathavaachak", "sutradhar", "कथावाचक", "सूत्रधार", "वाचक", "voiceover", "vo"}
-_SCENE_RE = re.compile(r"^\s*(?:\[\s*)?(?:scene|seen|drishya|दृश्य|sc\.?|#+)\s*(\d+)?\s*[:.\-–)]*\s*(.*?)\s*\]?\s*$", re.I)
+NARRATOR_NAMES = {"narrator", "narration", "kathavachak", "kathavaachak", "sutradhar", "कथावाचक", "सूत्रधार", "वाचक", "voiceover", "vo",
+                  "नैरेटर", "नरेटर", "कथाकार", "वर्णनकर्ता"}
+SCENE_WORDS = r"scene|seen|drishya|दृश्य|सीन|सीन्स|द्रश्य"
+_SCENE_RE = re.compile(r"^\s*(?:\[\s*)?(?:scene|seen|drishya|दृश्य|सीन|द्रश्य|sc\.?|#+)\s*([\d०-९]+)?\s*[:.\-–)]*\s*(.*?)\s*\]?\s*$", re.I)
 _TITLE_RE = re.compile(r"^\s*(?:title|naam|शीर्षक)\s*[:\-]\s*(.+)$", re.I)
-_LINE_RE = re.compile(r"^\s*([^\s:：()\[\]][^:：()\[\]]{0,28}?)\s*[:：]\s*(.+)$")
+_LINE_RE = re.compile(r"^\s*([^\s:：()\[\]][^:：()\[\]]{0,28}?)\s*(?:[\(（]([^)）]{1,60})[\)）])?\s*[:：]\s*(.+)$")
 _PAREN_RE = re.compile(r"^\s*[\(\[]\s*([^)\]]{1,80})\s*[\)\]]\s*")
 WORDS_PER_SEC = 2.4
 
@@ -73,16 +75,18 @@ class ParsedScript:
 
 def _speaker(name: str) -> tuple[str, bool]:
     n = " ".join(name.split()).strip("*_ ")
-    return n, n.lower() in NARRATOR_NAMES
+    low = n.lower()
+    # models sometimes mix scripts ("नarrator") — any form containing "arrat" counts as the narrator
+    return n, low in NARRATOR_NAMES or "arrat" in low or low.endswith("rator")
 
 
 def _is_scene_header(line: str) -> re.Match | None:
     s = line.strip()
     if not s:
         return None
-    if s.startswith("[") and s.endswith("]") and re.search(r"(?i)scene|drishya|दृश्य", s):
+    if s.startswith("[") and s.endswith("]") and re.search(rf"(?i){SCENE_WORDS}", s):
         return _SCENE_RE.match(s)
-    if re.match(r"(?i)^\s*(scene|drishya|दृश्य)\s*\d*\s*[:.\-–)]", s) or re.match(r"(?i)^\s*(scene|drishya|दृश्य)\s+\d+\s*$", s):
+    if re.match(rf"(?i)^\s*({SCENE_WORDS})\s*[\d०-९]*\s*[:.\-–)]", s) or re.match(rf"(?i)^\s*({SCENE_WORDS})\s+[\d०-९]+\s*$", s):
         return _SCENE_RE.match(s)
     if s.startswith("#"):
         return _SCENE_RE.match(s)
@@ -116,12 +120,12 @@ def parse(text: str, max_lines_per_auto_scene: int = 6) -> ParsedScript:
             current.lines.append(Line("action", pm.group(1).strip()))
             continue
         m = _LINE_RE.match(line)
-        if m and not m.group(2).startswith("//") and not re.search(r"https?$", m.group(1).strip(), re.I):
+        if m and not m.group(3).startswith("//") and not re.search(r"https?$", m.group(1).strip(), re.I):
             name, is_narr = _speaker(m.group(1))
-            body = m.group(2).strip()
-            direction = ""
+            body = m.group(3).strip()
+            direction = (m.group(2) or "").strip()
             dm = _PAREN_RE.match(body)
-            if dm:
+            if dm and not direction:
                 direction, body = dm.group(1).strip(), body[dm.end():].strip()
             if body:
                 current.lines.append(Line("narration" if is_narr else "dialogue", body, "" if is_narr else name, direction))

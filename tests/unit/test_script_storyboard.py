@@ -75,6 +75,21 @@ class ParserTests(TempDirCase):
         self.assertTrue(all(l.kind == "narration" for s in plain.scenes for l in s.lines))
         self.assertEqual(parser.parse("Visit https://x.com: now").scenes[0].lines[0].kind, "narration")
 
+    async def test_real_qwen3_output_shapes(self):
+        # exact shapes produced by qwen3:8b on the owner's laptop (2026-10-28)
+        txt = ("Title: कछूआ और खरगोश की दौड़ \n[सीन 1: जंगल, सुबह] \n"
+               "नarrator: एक दिन, खरगोश ने कछूए से दौड़ का चैलेंज ले लिया! \n"
+               "खरगोश (खुशी में): मैं तो जल्दी ही आगे आ जाऊंगा! \n"
+               "कछूआ (सांस लेते हुए): ठीक है, खरगोश! \n[सीन 2: जंगल के रास्ता, दोपहर] \nनैरेटर: दौड़ शुरू हो गई!\n")
+        ps = parser.parse(txt)
+        self.assertEqual(ps.title, "कछूआ और खरगोश की दौड़")
+        self.assertEqual([s.heading for s in ps.scenes], ["जंगल, सुबह", "जंगल के रास्ता, दोपहर"])
+        l = ps.scenes[0].lines
+        self.assertEqual([x.kind for x in l], ["narration", "dialogue", "dialogue"])
+        self.assertEqual((l[1].speaker, l[1].direction, l[1].text), ("खरगोश", "खुशी में", "मैं तो जल्दी ही आगे आ जाऊंगा!"))
+        self.assertEqual(ps.characters, ["खरगोश", "कछूआ"])
+        self.assertEqual(ps.scenes[1].lines[0].kind, "narration")
+
     async def test_read_files(self):
         t = self.tmp
         (t / "a.txt").write_text(SCRIPT, encoding="utf-8")

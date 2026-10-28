@@ -21,21 +21,37 @@ if TYPE_CHECKING:
 MAX_SCRIPT = 60_000
 LANG = {"hindi": "Hindi (Devanagari script)", "english": "English", "hinglish": "Hinglish (Hindi in Latin letters)"}
 
-WRITE_PROMPT = """You are a children's and family cartoon script writer.
+WRITE_PROMPT = """You are an award-winning children's and family cartoon script writer.
 Write an ORIGINAL short animated story script.
 Idea: {idea}
-Language: {lang}. Audience: {audience}. Tone: {tone}. Target length: about {seconds} seconds of narration+dialogue.
-Rules: 2-5 named characters, 3-7 scenes, a hook in the first line, a clear ending with a small lesson, no copyrighted characters.
-Write ONLY the script in exactly this format (no extra commentary):
-Title: <title>
-[Scene 1: <place, time of day>]
-Narrator: <narration>
-<Character>: (<emotion/action>) <dialogue>
-(<stage direction>)
-[Scene 2: ...]
+Language for the story text: {lang}. Audience: {audience}. Tone: {tone}. Target length: about {seconds} seconds.
+
+Story rules:
+- 2-4 named characters with different personalities; a hook in the very first line; a small twist; a clear ending with a lesson.
+- Every line must move the story forward. NEVER repeat the same sentence or catchphrase more than once.
+- Use simple, natural, correct words a child understands. No made-up words. No copyrighted characters.
+- 3-6 scenes.
+
+FORMAT RULES (very important — a computer reads this):
+- The markers Title:, [Scene N: ...] and Narrator: are ALWAYS written in English letters exactly like this, even for a Hindi story.
+- Emotion / action goes in brackets AFTER the colon: Name: (emotion) dialogue
+- Stage directions on their own line in brackets: (Khargosh runs away)
+- No markdown, no bold, no notes, nothing before Title: and nothing after the last line.
+
+EXAMPLE OF THE FORMAT (content is only an example):
+Title: चतुर लोमड़ी
+[Scene 1: जंगल, सुबह]
+Narrator: एक जंगल में एक चतुर लोमड़ी रहती थी।
+लोमड़ी: (मुस्कुराते हुए) आज मैं कुछ नया सीखूंगी!
+(लोमड़ी पेड़ के पीछे छिप जाती है)
+[Scene 2: नदी किनारा, दोपहर]
+Narrator: ...
+
+Now write the full script:
 """
 
-REVISE_PROMPT = """Revise this cartoon script. Keep the same format (Title:, [Scene N: ...], Name: (emotion) line, Narrator: ...).
+REVISE_PROMPT = """Revise this cartoon script. Keep the same format: Title:, [Scene N: ...], Narrator: (always in English letters),
+Name: (emotion) dialogue. Do not repeat lines. Use simple correct words.
 Keep character names consistent. Change ONLY what the instruction asks.
 Instruction: {instruction}
 
