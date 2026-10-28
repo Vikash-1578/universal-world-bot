@@ -4,7 +4,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from aiogram.exceptions import TelegramBadRequest
+from aiogram.exceptions import TelegramBadRequest, TelegramNetworkError
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
 
 from app.core.errors import HubError
@@ -33,10 +33,15 @@ async def answer(cb: CallbackQuery, text: str = "", alert: bool = False) -> None
         await cb.answer(text[:190], show_alert=alert)
     except TelegramBadRequest:
         pass  # query too old: nothing to do
+    except TelegramNetworkError:
+        log.warning("internet gaya: button ka jawab nahi bheja ja saka")
 
 
 async def fail(target: Message | CallbackQuery, e: Exception) -> None:
     text = e.user_message if isinstance(e, HubError) else "Kuch gadbad hui. Logs me detail hai, dobara try karo."
+    if isinstance(e, TelegramNetworkError):
+        log.warning("internet gaya (Telegram tak nahi pahunch saka) - bot khud dobara judega")
+        return
     if not isinstance(e, HubError):
         log.exception("handler_error")
     if isinstance(target, CallbackQuery):
