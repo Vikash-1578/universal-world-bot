@@ -4,7 +4,7 @@ A private, single-owner **AI video production hub controlled from Telegram**, ru
 Projects, scripts, storyboards with approval, reusable characters, a 2D pipeline, a Blender 3D pipeline, audio,
 subtitles, persistent jobs, exports and backups — built in tested milestones.
 
-> Status: Milestones 1–3 (foundation, dashboard, persistent scheduler) are working and tested.
+> Status: Milestones 1–4 (foundation, dashboard, persistent scheduler, script + storyboard with approvals) are working and tested.
 > See [docs/CHECKLIST.md](docs/CHECKLIST.md) for exactly what works and what does not yet.
 
 * Only your Telegram account can use it.

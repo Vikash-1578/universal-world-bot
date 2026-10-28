@@ -39,7 +39,19 @@ they prove our own logic, not that Telegram/AI/Blender behave the same way on th
 | Live job cards in Telegram | ✅ | |
 | Self-test job (real FFmpeg render + probe) | ✅ | passed on owner's laptop (FFmpeg 9.0.2) |
 
-## Milestone 4 — Script and Storyboard ⬜
+## Milestone 4 — Script and Storyboard
+| Item | Status | Notes |
+|---|---|---|
+| Script input: text, .txt/.md/.docx/.pdf, reference photos | ✅ | tests/unit/test_script_storyboard.py (file reading); Telegram download path not tested with real Telegram yet |
+| Voice → text (Groq Whisper, only with Cloud AI ON) | 🟡 | code done; **not tested with real Groq**; local Whisper = Milestone 9 |
+| Script versions, approve / reject, never overwrite approved | ✅ | |
+| Deterministic scene breakdown (no AI needed), Hindi + English | ✅ | |
+| AI script writing / revision (job) | 🟡 | logic tested with a fake AI; **not yet tested with a real model** |
+| LLM adapter: local Ollama first, cloud only after opt-in | ✅ | tested with a fake local server; **real Ollama/Groq not yet tested** |
+| Storyboard draft (rules) + AI Director suggestions (validated) | ✅ / 🟡 | rules tested; AI part tested with fake AI only |
+| Scene edit, reorder, duration, shot/transition, regenerate | ✅ | regenerate needs real AI (🟡) |
+| Storyboard approval gate; changes after approval need re-approval | ✅ | |
+| Telegram screens (Script Studio, Storyboard Studio) | ✅ | tests/integration/test_studio_flow.py (fake Telegram) |
 ## Milestone 5 — Character and Environment Studio ⬜
 ## Milestone 6 — Working 2D Pipeline ⬜
 ## Milestone 7 — Working 3D Pipeline (Blender) ⬜
