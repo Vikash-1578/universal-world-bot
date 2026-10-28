@@ -226,3 +226,25 @@ class CloudImageTests(TempDirCase):
             self.assertIsNone(ImageRouter(ComfyUI(), CloudflareImages("", ""), lambda: True).cloud)
         finally:
             await srv.close()
+
+
+class GroundAndLanguageTests(TempDirCase):
+    async def test_grass_disc_removed_and_hindi_names_redescribed(self):
+        from app.characters.jobs import is_english
+
+        im = Image.new("RGB", (400, 760), (255, 255, 255))
+        d = ImageDraw.Draw(im)
+        d.ellipse((60, 660, 340, 740), fill=(70, 160, 60), outline=(30, 80, 30), width=4)  # AI-style grass disc
+        d.ellipse((140, 40, 260, 160), fill=(240, 200, 160))
+        d.rectangle((185, 160, 215, 190), fill=(240, 200, 160))
+        d.rectangle((120, 190, 280, 470), fill=(200, 60, 60))
+        d.rectangle((130, 470, 185, 690), fill=(40, 40, 120))
+        d.rectangle((215, 470, 270, 690), fill=(40, 40, 120))
+        cut = imaging.cutout(im)
+        self.assertGreater(cut.width, 250)  # disc is part of the cut-out
+        clean = imaging.remove_ground(cut)
+        self.assertLess(clean.width, 180)  # only the figure is left
+        px = clean.convert("RGB").getpixel((clean.width // 2, clean.height - 2))
+        self.assertFalse(px[1] > px[0] + 18)  # bottom is shoes/legs, not grass
+        self.assertFalse(is_english("लोमड़ी"))
+        self.assertTrue(is_english("A cute orange cartoon fox"))

@@ -12,9 +12,18 @@ DESCRIBE_PROMPT = """Write a visual description for a 2D cartoon {kind} that an 
 Name: {name}
 Notes: {notes}
 Style: {style}
-Return ONE English paragraph (max 60 words): body shape, colours, clothes/props, face, distinctive details.
-The name may be in Hindi: understand it, but write the description in English.
+{context}
+The name may be in Hindi or Hinglish. First translate it in your head (e.g. लोमड़ी = fox, बिल्ली = cat, चिड़िया = small bird,
+खरगोश = rabbit, कछुआ = tortoise, शेर = lion, बागान/बगीचा = garden, जंगल = jungle). Draw exactly THAT: an animal name means
+that animal (cute cartoon animal, may stand on two legs) - never a human child instead.
+Return ONE English paragraph (max 60 words) that starts with what it is (e.g. "A cute orange cartoon fox ..."):
+body shape, colours, clothes/props, face, distinctive details.
 No story, no background description{bg}."""
+
+
+def is_english(text: str) -> bool:
+    letters = [c for c in text or "" if c.isalpha()]
+    return bool(letters) and sum(1 for c in letters if c.isascii()) / len(letters) > 0.8
 
 
 def register(hub: "Hub") -> None:
@@ -27,7 +36,8 @@ def register(hub: "Hub") -> None:
                 prompt = DESCRIBE_PROMPT.format(kind={"character": "character", "environment": "background location",
                                                        "prop": "object"}[it["kind"]], name=it["name"],
                                                 notes=(p.get("description") or p.get("look") or "")[:500], style=p.get("style", "kids cartoon"),
-                                                bg="" if it["kind"] == "environment" else " (the character will be on a plain background)")
+                                                bg="" if it["kind"] == "environment" else " (the character will be on a plain background)",
+                                                context=f"It appears in the story: {p['story']}" if p.get("story") else "")
                 text = (await hub.llm.chat(prompt, max_tokens=400, temperature=0.6)).strip().strip('"')[:800]
                 new = hub.library.update_profile(iid, {"look": text}, note=f"AI description ({hub.llm.last_provider})")
                 st.result = {"version": new["version"]}
@@ -36,7 +46,7 @@ def register(hub: "Hub") -> None:
     async def ai_image(ctx: JobContext) -> dict:
         iid = ctx.inputs["item_id"]
         it0 = hub.library.get(iid)
-        if not (it0["profile"].get("look") or it0["profile"].get("description")):
+        if ctx.inputs.get("redescribe") or not is_english(it0["profile"].get("look") or it0["profile"].get("description") or ""):
             # no description yet (e.g. made from a Hindi script name): ask the AI for an English look first, if it is on
             async with ctx.stage("auto_describe", ctx.inputs) as dst:
                 if not dst.skipped:

@@ -76,7 +76,9 @@ def auto_cast(hub, pid: int) -> None:
         if pick is None and own:
             pick = own[0]
         if pick is None:
-            pick = lib.create_item(kind, role, {"description": role, "style": templates.catalog()["style"]})
+            s = hub.scripts.approved(pid) or hub.scripts.latest(pid)
+            title = parser.parse(s["content"]).title if s else ""
+            pick = lib.create_item(kind, role, {"style": templates.catalog()["style"], "story": title[:120]})
         lib.cast(pid, role, pick["id"])
         hub.audit.record("auto_cast", "ok", "project", pid, role=role, item=pick["id"])
 
@@ -136,6 +138,7 @@ async def chars(target, hub, pid: int) -> None:
         kb.append([B(text=f"🎨 In {len(no_img)} ki AI image banao", callback_data=make("w", "aiall", pid))])
     kb.append([B(text="🔄 Kisi ko badlo / apni image do", callback_data=make("lb", "cast", pid))])
     if not no_img:
+        kb.append([B(text="🔁 Image galat hai? Sabki dobara banao", callback_data=make("w", "redo", pid))])
         kb.append([B(text="✅ Sab theek, aage ▶", callback_data=make("w", "voice", pid))])
     kb.append(nav(back=f"w|story|{pid}", refresh=f"w|chars|{pid}"))
     await show(target, "\n".join(lines), KB(inline_keyboard=kb))
@@ -317,11 +320,20 @@ async def cb_wizard(cb: CallbackQuery, hub) -> None:
             pid = c.int(0)
             await answer(cb, "Photos bhej raha hoon…")
             await _send_photos(cb, hub, pid)
-        elif a == "aiall":
+        elif a in ("aiall", "redo", "redo_ok"):
             from app.telegram.handlers.library import missing_images
 
             pid = c.int(0)
-            todo = missing_images(hub, pid)
+            if a == "redo":
+                await answer(cb)
+                await show(cb, "🔁 Is kahani ke saare characters aur jagah ki image dobara banegi (AI pehle unka sahi angrezi "
+                               "description likhega, jaise लोमड़ी = fox). Purani image version history me rahegi. Pakka?",
+                           KB(inline_keyboard=[[B(text="✅ Haan, dobara banao", callback_data=make("w", "redo_ok", pid))], nav(back=f"w|chars|{pid}")]))
+                return
+            if a == "redo_ok":
+                todo = {r: row for r, row in hub.library.casting(pid).items()}
+            else:
+                todo = missing_images(hub, pid)
             if not todo:
                 await answer(cb, "Sabki image pehle se hai")
                 await chars(cb, hub, pid)
@@ -332,7 +344,8 @@ async def cb_wizard(cb: CallbackQuery, hub) -> None:
             m = _m(cb)
             for role, row in todo.items():
                 hub.jobs.submit_job("library_ai_image", None,
-                                    {"item_id": row["item_id"], "recast": {"project_id": pid, "role": role}, "wizard": pid}, 4,
+                                    {"item_id": row["item_id"], "recast": {"project_id": pid, "role": role}, "wizard": pid,
+                                     "redescribe": a == "redo_ok"}, 4,
                                     idempotency_key=f"wz:img:{pid}:{row['item_id']}:{m.message_id if m else 0}",
                                     chat_id=m.chat.id if m else None, title=f"AI image: {role[:30]}")
             await answer(cb, f"{len(todo)} images ban rahi hain")

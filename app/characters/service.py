@@ -21,9 +21,9 @@ KINDS = ("character", "environment", "prop")
 EXPRESSIONS = ("happy", "sad", "angry", "surprised", "scared", "talk", "blink")
 POSES = ("wave", "point", "walk", "sit", "run")
 PROFILE_FIELDS = {
-    "character": ("description", "look", "style", "proportions", "gender", "age", "size", "outfits", "voice", "personality"),
-    "environment": ("description", "look", "style", "setting", "time_of_day", "lighting"),
-    "prop": ("description", "look", "style"),
+    "character": ("description", "look", "style", "proportions", "gender", "age", "size", "outfits", "voice", "personality", "story"),
+    "environment": ("description", "look", "style", "setting", "time_of_day", "lighting", "story"),
+    "prop": ("description", "look", "style", "story"),
 }
 BG_SIZE = (1920, 1080)
 
@@ -188,6 +188,8 @@ class LibraryService:
             files[f"{role}:original"] = self._store(item_id, nv, f"{role}_original", imaging.png_bytes(im.convert("RGBA")), "png")
             if cut is None:
                 cut = im.convert("RGBA")  # keep it, QC will say "background nahi hata"
+            if kind == "character" and source != "upload":
+                cut = imaging.remove_ground(cut)  # AI pictures: drop the grass disc under the feet
             if cut.getbbox():
                 cut = cut.crop(cut.getchannel("A").getbbox() or (0, 0, cut.width, cut.height))
             files[role] = {**self._store(item_id, nv, role, imaging.png_bytes(cut), "png"), "w": cut.width, "h": cut.height}
