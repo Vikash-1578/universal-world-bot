@@ -23,6 +23,7 @@ HELP_TEXT = ("❓ Help\n\n"
              "• 🎞 Storyboard — approved script se scenes; shot/jagah/time badlo, upar-neeche karo, phir approve.\n"
              "• 🧍 Characters / 🏞 Environments — apni library: image do (background apne aap hatta hai), expressions, poses, "
              "1100+ templates, package export/import. Project me 🎭 Casting se script ke characters ko library item do.\n"
+             "• 🎭 Animation / 📤 Export — storyboard + casting se 2D cartoon video (preview 360p ya final). Awaaz Milestone 8 me.\n"
              "• ⏳ Job Queue — lambe kaam (render, awaaz...) yahan chalte hain. Pause, resume, cancel, retry.\n"
              "• ⚙️ Settings — Cloud AI on/off. Default OFF: koi paid/cloud service bina tumhari permission ke nahi chalegi.\n"
              "• 🩺 Diagnostics — laptop, GPU, FFmpeg, Blender, database ki jaanch + self-test video.\n\n"
@@ -36,7 +37,7 @@ def coming_soon(key: str) -> str:
     m = AVAILABLE[key]
     return (f"{label}\n\n🚧 Ye hissa Milestone {m} me banega. Abhi kaam nahi karta — "
             f"jab tak wo test na ho jaye, bot ise chalne wala nahi batayega.\n\n"
-            "Abhi chalne wale: Projects, New Production, Script Studio, Storyboard, Characters, Environments, Job Queue, Settings, Diagnostics, Help.")
+            "Abhi chalne wale: Projects, New Production, Script Studio, Storyboard, Characters, Environments, Animation, Render & Export, Job Queue, Settings, Diagnostics, Help.")
 
 
 @router.message(CommandStart())
@@ -83,6 +84,12 @@ async def cb_menu(cb: CallbackQuery, hub) -> None:
 
             await answer(cb)
             await pick_project(cb, hub, "ss" if c.action == "script" else "sb", 0)
+            return
+        if c.action in ("animation", "export"):
+            from app.telegram.handlers.animation import pick
+
+            await answer(cb)
+            await pick(cb, hub, 0)
             return
         if c.action in ("projects", "new", "jobs"):
             from app.telegram.handlers import jobs, projects
