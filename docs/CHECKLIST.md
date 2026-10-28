@@ -77,7 +77,7 @@ they prove our own logic, not that Telegram/AI/Blender behave the same way on th
 | Final needs approved storyboard (gate); preview works on draft | ✅ | |
 | Telegram: Animation / Export screens, scene photo, auto-send video (<50 MB) | ✅ | fake Telegram session |
 | Audio | ⛔ | silent track only — voices, music, subtitles are Milestone 8 |
-| Verified on owner's laptop | ⬜ | |
+| Verified on owner's laptop | ✅ | 2026-10-28: final 1920x1080 30fps 59s, 4 scenes, validated (stand-in figures, casting not done yet) |
 ## Milestone 7 — Working 3D Pipeline (Blender) ⬜
 ## Milestone 8 — Audio and Subtitles ⬜
 ## Milestone 9 — Model Management ⬜
