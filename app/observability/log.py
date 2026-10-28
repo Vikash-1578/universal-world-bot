@@ -8,7 +8,7 @@ from pathlib import Path
 
 _SECRETS: set[str] = set()
 _PATTERNS = [
-    re.compile(r"\b\d{8,10}:[A-Za-z0-9_-]{30,}\b"),          # telegram bot token
+    re.compile(r"\b\d{5,12}:[A-Za-z0-9_-]{30,}\b"),          # telegram bot token
     re.compile(r"\b(?:sk|gsk|csk|AIza|hf|nvapi)[-_A-Za-z0-9]{12,}\b"),  # common API key shapes
     re.compile(r"(?i)(bearer\s+)[A-Za-z0-9._-]{12,}"),
     re.compile(r"(?i)([?&](?:key|token|api_key)=)[^&\s]+"),
