@@ -132,3 +132,13 @@ class WizardTests(TempDirCase):
         await feed(self.bot, self.dp, cb_update(make("w", "own", pid, i_k)))
         st = self.hub.extra["conv"].get(1001)
         self.assertEqual((st["step"], st["data"]["recast"]["role"]), ("lib_img", "Khargosh"))
+
+    async def test_role_context_tells_the_ai_what_a_name_is(self):
+        from app.telegram.handlers.wizard import role_context
+
+        pid = self.hub.projects.create_project("Chintu", "2d")["id"]
+        self.hub.scripts.create_version(pid, "Title: चिंटू की जल्दबाज़ी\n[Scene 1: जंगल, सुबह]\n"
+                                             "Narrator: हरे-भरे जंगल में चिंटू नाम का एक तेज़ खरगोश रहता था।\nचिंटू: (खुश) आज मैं जीतूँगा!\n")
+        ctx = role_context(self.hub, pid, "चिंटू")
+        self.assertIn("खरगोश", ctx)  # the species comes from the narration, not from the name
+        self.assertIn("आज मैं जीतूँगा", ctx)

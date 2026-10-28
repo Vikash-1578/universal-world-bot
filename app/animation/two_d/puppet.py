@@ -375,11 +375,11 @@ class Stage:
         shot = self.shots.get(id(tk)) if tk is not None else None
         if shot and boxes and tk.actor in boxes:
             ax, atop, ah = boxes[tk.actor]
-            want_h = ah * (1.05 if shot == "close" else 1.6)
+            want_h = ah * (1.05 if shot == "close" else 1.9)
             z = max(1.15, min(2.3 if shot == "close" else 1.6, self.sh / max(1.0, want_h)))
             zw, zh = self.sw / z, self.sh / z
             zx = min(max(ax, zw / 2), self.sw - zw / 2)
-            zy = min(max(atop - 0.06 * zh + zh / 2, zh / 2), self.sh - zh / 2)
+            zy = min(max(atop - 0.16 * zh + zh / 2, zh / 2), self.sh - zh / 2)  # head room for hops / tilts
             k = _ease(min(1.0, (t - tk.start) / 0.3, (tk.end - t) / 0.3))
             cx, cy, cw, ch = (cx + (zx - cx) * k, cy + (zy - cy) * k, cw + (zw - cw) * k, ch + (zh - ch) * k)
         box = (int(cx - cw / 2), int(cy - ch / 2), int(cx + cw / 2), int(cy + ch / 2))

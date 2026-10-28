@@ -57,6 +57,28 @@ STEP_LABEL = {"start": "📖 Kahani do", "story": "📖 Kahani check karo", "cha
 
 
 # ------------------------------------------------------------------ auto casting
+def role_context(hub, pid: int, role: str) -> str:
+    """What the story says about a role, e.g. 'चिंटू नाम का एक तेज़ खरगोश' — so the AI knows चिंटू is a rabbit.
+    Saved as the item's 'story' note and used when the AI writes its English look."""
+    s = hub.scripts.approved(pid) or hub.scripts.latest(pid)
+    if not s:
+        return ""
+    ps = parser.parse(s["content"])
+    bits = [f"Story: {ps.title}"] if ps.title else []
+    for sc in ps.scenes:
+        for ln in sc.lines:
+            if role in ln.text and ln.kind != "dialogue":
+                bits.append(ln.text)
+            elif ln.kind == "dialogue" and ln.speaker == role and len(bits) < 4:
+                bits.append(f"{role} says: {ln.text}")
+            if len(" ".join(bits)) > 350:
+                break
+        if sc.heading and role in sc.heading:
+            bits.append(f"Place: {sc.heading}")
+    return " | ".join(bits)[:400]
+
+
+
 def auto_cast(hub, pid: int) -> None:
     """Give every script role a library item: own item with a picture > ready template > new empty item."""
     from app.characters import templates
@@ -76,9 +98,7 @@ def auto_cast(hub, pid: int) -> None:
         if pick is None and own:
             pick = own[0]
         if pick is None:
-            s = hub.scripts.approved(pid) or hub.scripts.latest(pid)
-            title = parser.parse(s["content"]).title if s else ""
-            pick = lib.create_item(kind, role, {"style": templates.catalog()["style"], "story": title[:120]})
+            pick = lib.create_item(kind, role, {"style": templates.catalog()["style"], "story": role_context(hub, pid, role)})
         lib.cast(pid, role, pick["id"])
         hub.audit.record("auto_cast", "ok", "project", pid, role=role, item=pick["id"])
 
@@ -485,6 +505,10 @@ async def cb_wizard(cb: CallbackQuery, hub) -> None:
                 return
             if a == "redo_ok":
                 todo = {r: row for r, row in hub.library.casting(pid).items()}
+                for r, row in todo.items():  # refresh what the story says about each role before re-describing
+                    ctxt = role_context(hub, pid, r)
+                    if ctxt and not hub.library.get(row["item_id"]).get("template_id"):
+                        hub.library.update_profile(row["item_id"], {"story": ctxt}, note="story context")
             else:
                 todo = missing_images(hub, pid)
             if not todo:
@@ -557,7 +581,7 @@ async def cb_wizard(cb: CallbackQuery, hub) -> None:
                 await answer(cb, "Image AI band hai: ⚙️ Settings me Cloud AI ON karo (keys.txt me Cloudflare key)", alert=True)
                 return
             cur = hub.library.casting(pid).get(role)
-            iid = cur["item_id"] if cur else hub.library.create_item(kind, role, {"story": role})["id"]
+            iid = cur["item_id"] if cur else hub.library.create_item(kind, role, {"story": role_context(hub, pid, role)})["id"]
             if not cur:
                 hub.library.cast(pid, role, iid)
             m = _m(cb)

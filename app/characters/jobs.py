@@ -37,7 +37,8 @@ def register(hub: "Hub") -> None:
                                                        "prop": "object"}[it["kind"]], name=it["name"],
                                                 notes=(p.get("description") or p.get("look") or "")[:500], style=p.get("style", "kids cartoon"),
                                                 bg="" if it["kind"] == "environment" else " (the character will be on a plain background)",
-                                                context=f"It appears in the story: {p['story']}" if p.get("story") else "")
+                                                context=(f"What the story says about it (use this to know WHAT it is, e.g. which animal): {p['story']}"
+                                                         if p.get("story") else ""))
                 text = (await hub.llm.chat(prompt, max_tokens=400, temperature=0.6)).strip().strip('"')[:800]
                 new = hub.library.update_profile(iid, {"look": text}, note=f"AI description ({hub.llm.last_provider})")
                 st.result = {"version": new["version"]}
