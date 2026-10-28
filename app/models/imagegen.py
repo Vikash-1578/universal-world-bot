@@ -17,8 +17,9 @@ import aiohttp
 from app.core.errors import HubError, ProviderUnavailable
 
 COMFY = "http://127.0.0.1:8188"
-NEGATIVE = "text, watermark, logo, blurry, deformed, extra limbs, cropped, frame, border"
-CHARACTER_SUFFIX = ", full body, standing, centered, plain solid bright green background, no shadow, clean outlines"
+NEGATIVE = "text, watermark, logo, blurry, deformed, extra limbs, cropped, frame, border, ground, grass, floor, shadow, platform"
+CHARACTER_SUFFIX = (", full body, standing, centered, isolated character sticker on a plain flat solid white background, "
+                    "no ground, no grass, no floor, no shadow under the feet, clean outlines")
 BACKGROUND_SUFFIX = ", wide establishing shot, empty scene with no characters, 16:9"
 
 

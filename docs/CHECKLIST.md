@@ -63,7 +63,7 @@ they prove our own logic, not that Telegram/AI/Blender behave the same way on th
 | Project casting with version pinning ("naya version hai" warning) | ✅ | tests/integration/test_library_flow.py |
 | Portable packages: export / import with checksum + zip-slip protection | ✅ | |
 | AI description (Ollama) job | 🟡 | uses the same verified Ollama path; this prompt not yet tried on the laptop |
-| AI image (local ComfyUI) job | 🟡 | protocol tested with a fake ComfyUI; **ComfyUI not installed on laptop yet** |
+| AI image job: local ComfyUI or opt-in Cloudflare | ✅ / 🟡 | Cloudflare verified on laptop 2026-10-28 (lion character + auto cut-out); ComfyUI not installed yet |
 | Telegram: Character / Environment Studio, Templates, Casting | ✅ | fake Telegram session |
 ## Milestone 6 — Working 2D Pipeline ⬜
 ## Milestone 7 — Working 3D Pipeline (Blender) ⬜

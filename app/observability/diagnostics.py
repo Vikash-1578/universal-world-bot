@@ -191,10 +191,30 @@ def check_config(s: Settings) -> list[Check]:
         out.append(Check("Config", OK, "token + owner set"))
     for p in probs:
         out.append(Check("Config", FAIL if p.level == "error" else WARN, p.what, p.fix))
+    commented = _commented_keys(s.base_dir / "keys.txt")
+    if commented:
+        out.append(Check("keys.txt", WARN, f"{len(commented)} key '#' ke peeche hai, isliye band hai: {', '.join(commented)}",
+                         "keys.txt me us line ke shuru se '#' hatao (jaise: gemini:AIza...)."))
     providers = sorted({k for k, _ in s.keys})
     out.append(Check("API keys", OK if providers else WARN,
                      f"{len(s.keys)} keys ({', '.join(providers[:8])})" if providers else "keys.txt khali / nahi mila",
                      "" if providers else "Cloud AI optional hai. Chahiye to keys.txt me provider:key lines daalo."))
+    return out
+
+
+def _commented_keys(path: Path) -> list[str]:
+    """Names of lines like '# gemini:AIza....' that look like a real key the owner forgot to un-comment."""
+    import re
+
+    try:
+        text = path.read_text(encoding="utf-8-sig")
+    except OSError:
+        return []
+    out = []
+    for line in text.splitlines():
+        m = re.match(r"^\s*#\s*([A-Za-z][A-Za-z0-9_]*)\s*[:=]\s*(\S{16,})\s*$", line)
+        if m and "xxx" not in m.group(2).lower():
+            out.append(m.group(1))
     return out
 
 

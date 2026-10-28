@@ -27,6 +27,14 @@ class ConfigTests(unittest.TestCase):
             self.assertEqual(s.key("cf_account_id"), "abc")
             self.assertTrue((t / "data").is_dir())
 
+    def test_commented_key_warning(self):
+        from app.observability.diagnostics import _commented_keys
+
+        with tempfile.TemporaryDirectory() as td:
+            f = Path(td) / "keys.txt"
+            f.write_text("# groq:gsk_xxxxxxxx\n# gemini:AIzaSyRealLookingKey123456\ngroq:gsk_active\n", encoding="utf-8")
+            self.assertEqual(_commented_keys(f), ["gemini"])
+
     def test_parse_keys_skips_bad(self):
         self.assertEqual(parse_keys("::\n=\nhf:x\n"), [("hf", "x")])
 

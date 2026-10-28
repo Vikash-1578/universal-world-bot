@@ -1,6 +1,10 @@
-# Optional cloud AI keys, one per line:  provider:key   (copy to keys.txt — never commit keys.txt)
+# Optional cloud AI keys. Copy this file to keys.txt (never commit keys.txt).
+# ONE key per line, WITHOUT '#' in front:   provider:key
+# Lines starting with '#' are ignored (like this one).
 # Cloud AI stays OFF until you switch it on in Telegram: Settings -> Cloud AI.
-# groq:gsk_xxxxxxxx
-# gemini:AIzaxxxxxxxx
-# CF_ACCOUNT_ID=xxxxxxxx
-# CF_API_TOKEN=xxxxxxxx
+#
+# Examples (remove the '#' and put your real key):
+# groq:gsk_your_key_here
+# gemini:AIza_your_key_here
+# CF_ACCOUNT_ID=your_cloudflare_account_id
+# CF_API_TOKEN=your_cloudflare_token
