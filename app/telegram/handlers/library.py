@@ -38,9 +38,10 @@ async def home(target, hub, k: str) -> None:
     kind = K[k]
     _, own = hub.library.list_items(kind, limit=1)
     n_t = len(templates.entries(kind=TKIND[k])) if k in TKIND else 0
-    img_ok = await hub.imagegen.available()
+    src = await hub.imagegen.sources()
+    img = " + ".join(n for n, ok in (("ComfyUI (laptop)", src["comfyui"]), ("Cloudflare (cloud)", src["cloudflare"])) if ok)
     text = (f"{TITLE[k]}\n\nTumhari library: {own}\nReady templates: {n_t}\n"
-            f"🎨 AI image (ComfyUI): {'chalu' if img_ok else 'band — apni image upload karo'}")
+            f"🎨 AI image: {img or 'band — apni image upload karo'}")
     rows = [[B(text=f"📂 Meri library ({own})", callback_data=make("lb", "list", k, 0))],
             [B(text="➕ Naya banao", callback_data=make("lb", "new", k))]]
     if n_t:
@@ -287,8 +288,10 @@ async def cb_library(cb: CallbackQuery, hub) -> None:
                 return
             if a == "aiimg" and not await hub.imagegen.available():
                 await answer(cb)
-                await show(cb, "🎨 Image AI (ComfyUI) abhi nahi mila.\n\n• ComfyUI install karke chalao aur ek SDXL checkpoint daalo "
-                               "(docs/model-compatibility.md me steps)\n• Tab tak 🖼 Image bhejo se apni drawing/photo do",
+                await show(cb, "🎨 Image AI abhi chalu nahi hai.\n\n"
+                               "• Free cloud: keys.txt me CF_ACCOUNT_ID + CF_API_TOKEN daalo, phir ⚙️ Settings → Cloud AI ON\n"
+                               "• Ya laptop par ComfyUI install karo (GitHub docs: model-compatibility)\n"
+                               "• Ya 🖼 Image bhejo se apni drawing/photo do",
                            KB(inline_keyboard=[nav(back=f"lb|open|{iid}")]))
                 return
             m = _m(cb)

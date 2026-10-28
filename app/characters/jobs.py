@@ -47,12 +47,12 @@ def register(hub: "Hub") -> None:
 
                 async def tick() -> None:
                     ctx.check()
-                    await ctx.progress(min(0.85, ctx.job.get("progress", 0) + 0.05), "ComfyUI image bana raha hai")
+                    await ctx.progress(min(0.85, ctx.job.get("progress", 0) + 0.05), "AI image bana raha hai")
 
                 data = await hub.imagegen.generate(prompt, width=w, height=h, progress=tick)
-                new, qc = hub.library.add_image(iid, "background" if env else "main", data, source="comfyui")
+                new, qc = hub.library.add_image(iid, "background" if env else "main", data, source=hub.imagegen.last_provider or "ai")
                 st.result = {"version": new["version"], "qc_ok": bool(qc and qc.ok)}
             return dict(st.result)
 
     hub.jobs.register("library_describe", describe, max_attempts=2, title="AI description")
-    hub.jobs.register("library_ai_image", ai_image, heavy=True, max_attempts=2, title="AI image (ComfyUI)")
+    hub.jobs.register("library_ai_image", ai_image, heavy=True, max_attempts=2, title="AI image")

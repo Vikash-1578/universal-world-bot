@@ -105,3 +105,119 @@ class ComfyUI:
         except (aiohttp.ClientError, asyncio.TimeoutError, OSError) as e:
             raise ProviderUnavailable("ComfyUI se baat nahi ho payi.", detail=type(e).__name__) from e
         raise ProviderUnavailable("ComfyUI ne time par image nahi banayi.", detail="timeout")
+
+
+# ---------------------------------------------------------------- cloud backup (opt-in)
+CF_BASE = "https://api.cloudflare.com/client/v4/accounts"
+CF_MODELS = ("@cf/black-forest-labs/flux-1-schnell", "@cf/leonardo/lucid-origin", "@cf/leonardo/phoenix-1.0",
+             "@cf/bytedance/stable-diffusion-xl-lightning", "@cf/stabilityai/stable-diffusion-xl-base-1.0")
+
+
+class CloudflareImages:
+    """Cloudflare Workers AI text-to-image (free daily quota). Used ONLY when the owner switched Cloud AI on.
+    The prompt text goes to Cloudflare; no local files are uploaded."""
+
+    def __init__(self, account: str, token: str, base: str = CF_BASE, models: tuple[str, ...] = CF_MODELS, timeout: float = 120) -> None:
+        self.account, self.token = account.strip(), token.strip()
+        self.base = base.rstrip("/")
+        self.models = list(models)
+        self.good: str | None = None
+        self.timeout = timeout
+
+    @property
+    def configured(self) -> bool:
+        return bool(self.account and self.token)
+
+    async def _post(self, s: aiohttp.ClientSession, model: str, payload: dict) -> bytes:
+        import base64
+
+        async with s.post(f"{self.base}/{self.account}/ai/run/{model}", json=payload,
+                          headers={"Authorization": f"Bearer {self.token}"}) as r:
+            ctype = (r.headers.get("Content-Type") or "").lower()
+            if r.status != 200:
+                raise ProviderUnavailable("Cloudflare image error", detail=f"http {r.status} {(await r.text())[:200]}")
+            if ctype.startswith("image/"):
+                return await r.read()
+            j = await r.json(content_type=None)
+        res = j.get("result") if isinstance(j, dict) else None
+        b64 = res.get("image") if isinstance(res, dict) else res if isinstance(res, str) else None
+        if not b64:
+            raise ProviderUnavailable("Cloudflare ne image nahi di.", detail=str(j)[:200])
+        if b64.startswith("data:"):
+            b64 = b64.split(",", 1)[-1]
+        return base64.b64decode(b64)
+
+    async def generate(self, prompt: str, *, width: int = 832, height: int = 1216, seed: int | None = None, progress=None) -> bytes:
+        order = ([self.good] if self.good else []) + [m for m in self.models if m != self.good]
+        errors: list[str] = []
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.timeout)) as s:
+                for model in order:
+                    if progress:
+                        await progress()
+                    base: dict = {"prompt": prompt[:2000]}
+                    if "flux-1-schnell" in model:
+                        base["steps"] = 6
+                    else:
+                        base.update({"width": width, "height": height})
+                    for payload in ([dict(base, seed=seed)] if seed is not None else []) + [base]:
+                        try:
+                            data = await self._post(s, model, payload)
+                            self.good = model
+                            return data
+                        except ProviderUnavailable as e:
+                            errors.append(f"{model.rsplit('/', 1)[-1]}: {e.detail}"[:160])
+                            if any(f"http {c}" in (e.detail or "") for c in (401, 403, 429)):
+                                raise ProviderUnavailable("Cloudflare key / daily limit problem.", detail="; ".join(errors)) from e
+                            if "http 400" not in (e.detail or ""):
+                                break
+        except (aiohttp.ClientError, asyncio.TimeoutError, OSError) as e:
+            raise ProviderUnavailable("Cloudflare se baat nahi ho payi.", detail=type(e).__name__) from e
+        raise ProviderUnavailable("Cloudflare ne image nahi banayi.", detail="; ".join(errors)[-300:])
+
+
+class ImageRouter:
+    """Local ComfyUI first (default) or Cloudflare first when the owner chose "AI pehle: Cloud".
+    Cloudflare is used only while Cloud AI is ON."""
+
+    def __init__(self, comfy: ComfyUI, cloud: CloudflareImages | None, cloud_enabled, prefer_cloud=lambda: False) -> None:
+        self.comfy = comfy
+        self.cloud = cloud if cloud and cloud.configured else None
+        self.cloud_enabled = cloud_enabled
+        self.prefer_cloud = prefer_cloud
+        self.last_provider = ""
+
+    @property
+    def url(self) -> str:  # kept for tests / config display
+        return self.comfy.url
+
+    @url.setter
+    def url(self, v: str) -> None:
+        self.comfy.url = v.rstrip("/")
+
+    async def sources(self) -> dict[str, bool]:
+        return {"comfyui": await self.comfy.available(), "cloudflare": bool(self.cloud and self.cloud_enabled())}
+
+    async def available(self) -> bool:
+        src = await self.sources()
+        return src["comfyui"] or src["cloudflare"]
+
+    async def generate(self, prompt: str, *, width: int = 832, height: int = 1216, seed: int | None = None, progress=None) -> bytes:
+        src = await self.sources()
+        order = [n for n in (("cloudflare", "comfyui") if self.prefer_cloud() else ("comfyui", "cloudflare")) if src[n]]
+        if not order:
+            raise ImageGenUnavailable(
+                "Image AI abhi chalu nahi hai.\n"
+                "• Free cloud: keys.txt me CF_ACCOUNT_ID + CF_API_TOKEN (Cloudflare) daalo aur ⚙️ Settings me Cloud AI ON karo\n"
+                "• Ya laptop par ComfyUI install karo (docs: model-compatibility)\n"
+                "• Ya 🖼 Image bhejo se apni drawing/photo do")
+        last: Exception | None = None
+        for name in order:
+            try:
+                eng = self.comfy if name == "comfyui" else self.cloud
+                data = await eng.generate(prompt, width=width, height=height, seed=seed, progress=progress)  # type: ignore[union-attr]
+                self.last_provider = name
+                return data
+            except (ProviderUnavailable, ImageGenUnavailable) as e:
+                last = e
+        raise last if last else ImageGenUnavailable("Image nahi bani.")

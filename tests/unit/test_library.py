@@ -186,3 +186,43 @@ class ComfyTests(TempDirCase):
             await srv.close()
         with self.assertRaises(ImageGenUnavailable):
             await ComfyUI("http://127.0.0.1:9").generate("x")
+
+
+class CloudImageTests(TempDirCase):
+    """Cloudflare + ComfyUI replaced by fake HTTP servers (test doubles): proves routing + opt-in gate only."""
+
+    async def test_router_cloud_gate_and_order(self):
+        import base64
+
+        from app.models.imagegen import CloudflareImages, ComfyUI, ImageRouter
+
+        png = figure_on_green()
+        calls = []
+
+        async def run(req):
+            calls.append(req.match_info["m"])
+            j = await req.json()
+            if "flux" in req.match_info["m"] and "seed" in j:
+                return web.json_response({"errors": [{"code": 5006}]}, status=400)
+            return web.json_response({"result": {"image": base64.b64encode(png).decode()}})
+
+        app = web.Application()
+        app.router.add_post("/cf/{acc}/ai/run/{m:.*}", run)
+        srv = TestServer(app)
+        await srv.start_server()
+        try:
+            cloud_on = {"v": False}
+            cf = CloudflareImages("acc", "tok", base=f"http://{srv.host}:{srv.port}/cf")
+            r = ImageRouter(ComfyUI("http://127.0.0.1:9"), cf, lambda: cloud_on["v"])
+            self.assertFalse(await r.available())  # cloud OFF + no ComfyUI -> nothing, no network call to cloud
+            with self.assertRaises(ImageGenUnavailable):
+                await r.generate("x")
+            self.assertEqual(calls, [])
+            cloud_on["v"] = True
+            self.assertEqual(await r.sources(), {"comfyui": False, "cloudflare": True})
+            self.assertEqual(await r.generate("rabbit", seed=3), png)
+            self.assertEqual(r.last_provider, "cloudflare")
+            self.assertEqual(len(calls), 2)  # with seed -> 400, retried without seed
+            self.assertIsNone(ImageRouter(ComfyUI(), CloudflareImages("", ""), lambda: True).cloud)
+        finally:
+            await srv.close()
