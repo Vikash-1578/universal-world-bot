@@ -10,7 +10,8 @@ Only models that were actually tested on the laptop are marked ✅. Everything e
 | Character / background images (cloud, opt-in) | Cloudflare Workers AI (flux-1-schnell + fallbacks) | cloud, free daily limit | ✅ tested 2026-10-28 (needs Cloud AI ON + CF keys) |
 | Speech-to-text | Groq Whisper (cloud, opt-in) | cloud | not tested |
 | Speech-to-text (local) | faster-whisper | GPU/CPU | Milestone 9 |
-| Text-to-speech | Piper / Kokoro / XTTS | CPU/GPU | Milestone 8 |
+| Text-to-speech (local, free) | Piper `hi_IN-pratham-medium` (GPL-3.0 engine; voice licence on its model card) | CPU (~0.1 s per sentence) | ✅ sandbox render test 2026-10-28; ⬜ laptop |
+| Text-to-speech (alt) | Kokoro / XTTS | CPU/GPU | not planned yet |
 | 3D | Blender 4.x | GPU | Milestone 7 (not installed yet) |
 
 Rules: one heavy model at a time (`max_heavy_workers = 1`), models are never downloaded automatically.

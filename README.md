@@ -4,8 +4,10 @@ A private, single-owner **AI video production hub controlled from Telegram**, ru
 Projects, scripts, storyboards with approval, reusable characters, a 2D pipeline, a Blender 3D pipeline, audio,
 subtitles, persistent jobs, exports and backups — built in tested milestones.
 
-> Status: Milestones 1–5 work and are tested. Milestone 6 (2D) renders real videos but is **silent** (no voices/music/subtitles yet)
-> and its motion is basic. Not built yet: 3D/Blender (M7), audio + subtitles (M8), model manager (M9), backups/hardening (M10).
+> Status: Milestones 1–5 work and are tested. Milestone 6 (2D) now renders with **real local voices** (Piper TTS, free,
+> no API key), lip-sync from the audio, visible body/head motion and an `.srt` subtitle file — tested in the sandbox
+> (incl. a real Hindi Piper voice), **not yet re-tested on the owner's laptop**. Not built yet: music/SFX and burned-in
+> subtitles, 3D/Blender (M7), model manager (M9), backups/hardening (M10).
 > See [docs/CHECKLIST.md](docs/CHECKLIST.md) and [docs/AUDIT.md](docs/AUDIT.md) for exactly what works and what does not.
 
 * Only your Telegram account can use it.

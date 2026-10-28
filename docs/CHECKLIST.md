@@ -74,13 +74,17 @@ they prove our own logic, not that Telegram/AI/Blender behave the same way on th
 | Plan from storyboard + casting (pinned versions), deterministic | ✅ | tests/integration/test_animation_2d.py |
 | Missing casting / picture -> clear error naming the role; render refused (no stand-in figure / plain sky) | ✅ | changed 2026-10-28 on owner's request; tests/integration/test_animation_2d.py |
 | Puppet renderer (ported v1): walk-in with leg swing, talk bounce, emotions/poses if images exist, camera moves, mood grading, fades | ✅ | real Pillow + FFmpeg render in tests |
-| Lip-sync (mouth) | 🟡 | only when the character has an `expr:talk` image; driven by estimated timing until M8 voices |
+| Real voice for every line (local Piper TTS, no key) + per-character voice style (pitch/speed) | ✅ sandbox / ⬜ laptop | `tests/integration/test_voice_lipsync.py` (FakeTTS + real Hindi Piper voice) |
+| One timeline: audio cues → mouth, gestures, subtitles (.srt); scene length = audio length (frame-rounded) | ✅ sandbox / ⬜ laptop | timing + AV validation tests |
+| Lip-sync | 🟡 | mouth opens/closes with the voice loudness (not phoneme-accurate). Uses the owner's `talk` picture if present, else a mouth found on the picture ("found") or an estimated position ("estimated" — may sit slightly off, e.g. under a big moustache) |
+| Body motion without pose pictures: breathing, weight shift / sway, head movement, lean toward listener, '!' hop, '?' head tilt, listener reactions | ✅ sandbox / ⬜ laptop | pose + frame-difference tests |
+| AV validation: silent audio, audio≠video length, length≠timeline, subtitles past the end | ✅ | `test_silent_audio_is_caught` |
+| Music / sound effects, burned-in subtitles | ⛔ | not built (subtitles are a separate .srt file) |
 | Render job: one checkpoint per scene, resume reuses finished scenes (sha256 checked) | ✅ | retry test proves scene file not re-rendered |
 | Join + validation (size, fps, audio stream, duration) + export to project/exports | ✅ | |
 | Final needs approved storyboard (gate); preview works on draft | ✅ | |
 | Telegram: Animation / Export screens, scene photo, auto-send video (<50 MB) | ✅ | fake Telegram session |
-| Audio | ⛔ | silent track only — voices, music, subtitles are Milestone 8 |
-| Verified on owner's laptop | ✅ (file) / ❌ (quality) | 2026-10-28: renders + validates 1080p; owner rated the result 0/10 — static figures, no audio, wrong AI pictures for Hindi names (fixed in code, not re-tested on laptop) |
+| Verified on owner's laptop | ✅ (file) / ❌ (quality) | 2026-10-28: renders + validates 1080p; owner rated the result 0/10 — static figures, no audio, wrong AI pictures for Hindi names. Voice/lip-sync/motion fix is on branch `review/audit-2026-10-28` — not re-tested on the laptop yet |
 ## Milestone 7 — Working 3D Pipeline (Blender) ⬜
 ## Milestone 8 — Audio and Subtitles ⬜
 ## Milestone 9 — Model Management ⬜

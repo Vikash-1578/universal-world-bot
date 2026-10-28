@@ -21,14 +21,14 @@ Status: ✅ implemented · 🟡 partial · ❌ missing
 | 11 | Persistent job queue + recovery | `app/scheduler/service.py` (states, stages, checkpoints, reconcile) | ✅ | | `test_scheduler.py`, `tests/recovery/test_restart.py`, 2D resume test |
 | 12 | Logs / diagnostics | `app/observability/*` (redaction, audit, diagnostics, self-test) | ✅ | | unit + laptop |
 | 13 | Safe local storage | `storage/files.py` safe_join, upload checks, zip-slip protection | ✅ | | unit tests |
-| 14 | 2D workflow | `app/animation/two_d/*` (planner, puppet, rig, job), `handlers/animation.py` | 🟡 | renders + validates real MP4; motion basic, **silent**, owner rated quality 0/10 | `test_animation_2d.py` (real FFmpeg); laptop renders |
+| 14 | 2D workflow | `app/animation/two_d/*` (planner, puppet, rig, job), `handlers/animation.py` | 🟡 | voice + lip-sync + body motion added (see below); owner's 0/10 was for the silent/static version | `test_animation_2d.py`, `test_voice_lipsync.py` (real FFmpeg, real Piper voice in sandbox) |
 | 15 | Blender 3D workflow | `app/animation/three_d/` (empty) | ❌ | Blender not installed on laptop; 2D renderer now refuses 3D projects | refusal test only |
 | 16 | Separate 2D / 3D test projects | tests create separate 2D and 3D projects | 🟡 | 3D project exists only as a refusal case until M7 | `test_animation_2d.py` |
 | 17 | Never render with placeholder/stand-in | `two_d/jobs.require_pictures`, `planner.load_scene` raises; stand-in drawing code removed | ✅ (this branch) | before this branch `load_scene` still had a stand-in fallback behind the gate | `test_load_scene_refuses_missing_pictures`, render-blocked tests |
 | 18 | Adaptive quality / rendering | preview 360p·12fps vs final (project resolution/fps); 1 heavy job slot | 🟡 | no hardware-based auto choice; owner cannot set 720p from Telegram (settings has no resolution button) | partial |
 | 19 | Multilingual | project language hindi/english/hinglish → script prompts; UI is Hinglish only | 🟡 | Devanagari text in rendered video not needed yet (no subtitles) | parser Hindi tests |
-| 20 | Audio / voice / music | `app/audio/stt.py` (Groq speech-to-text, opt-in) only | ❌ | videos carry a silent track; no TTS, voices, music, SFX | — |
-| 21 | Subtitles | `app/subtitles/` (empty) | ❌ | | — |
+| 20 | Audio / voice / music | `app/audio/tts.py` (local Piper TTS, per-character pitch/speed styles), `app/audio/timeline.py`; STT opt-in | 🟡 | dialogue + narrator voiced locally, no key; **no music / SFX yet** | `test_voice_lipsync.py` |
+| 21 | Subtitles | `.srt` from the audio timeline (`app/audio/timeline.py`), sent with the video | 🟡 | not burned into the picture | timing + past-end validation tests |
 | 22 | Model management | Ollama auto-detect, Cloudflare/ComfyUI routing; `models` table unused | ❌ (🟡 detection) | no list/install/remove UI | LLM/ImageRouter tests |
 | 23 | Smart export / delivery | `exports/validate.py` probe+check; auto-send video <48 MB else laptop path; `exports` table + manifest (this branch) | 🟡 | no presets (YouTube/Shorts), no export approval | render test |
 | 24 | Backups | `app/backups/` empty, no `backup.ps1` | ❌ | | — |
@@ -72,3 +72,17 @@ cd C:\uwb\universal-world-bot-main
 4. After all images: ▶ Aage → Final check → 🎬 Final video. Video arrives (silent).
 5. Make a 3D project (🎬 → 3D) → 🎭 Animation preview → must say "Ye project 2D nahi hai".
 6. Optional (dev): `venv\Scripts\python -m pip install -r requirements-dev.txt` then `venv\Scripts\python -m pytest -q`.
+
+## Update — voice, lip-sync and motion (same branch)
+Root cause of the silent, static reference video (`2_final_1920x1080_…_job18.mp4`, measured: audio max −91 dB = digital silence):
+1. No text-to-speech existed; every scene was rendered with `anullsrc` (a silent track) and talk times were word-count guesses.
+2. Mouth animation only worked if the owner had uploaded a separate `talk` expression picture; AI-made characters never have one,
+   so `Rig.has_mouth()` was False and nothing moved on the face.
+3. Idle motion was a 0.4 % breathing offset (invisible) and head tilt ±1.6° only while "talking"; close-up camera shots hid the body.
+
+Fix: Piper TTS (local, free) voices every line → one scene WAV whose cue times drive the mouth (loudness envelope),
+gestures and the `.srt`; mouth located on the single picture when no `talk` picture exists; breathing, weight shift, sway,
+head movement, lean-to-listener, '!' hop, '?' tilt, listener nods; medium shots keep the body in frame; validation now
+fails silent audio, audio/video length mismatch, timeline mismatch and subtitles past the end.
+Limitations: lip-sync is loudness-based (not phonemes); an "estimated" mouth may sit slightly off; no music/SFX; subtitles
+are a separate file; Hinglish text in Latin letters is read by the Hindi voice and may sound unnatural.

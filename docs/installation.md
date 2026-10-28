@@ -21,6 +21,12 @@ It asks for the bot token (hidden while typing) and your Telegram id, creates `.
 Optional cloud AI keys go in `keys.txt` (`provider:key` per line). They are not used until you switch on
 **Settings → Cloud AI** in Telegram.
 
+It also installs **Piper** (local text-to-speech) and downloads the free Hindi voice `hi_IN-pratham-medium`
+(~63 MB, once) into `data\models\piper`. No API key or account is needed. English projects need one more voice:
+```powershell
+venv\Scripts\python -m piper.download_voices en_US-lessac-medium --download-dir data\models\piper
+```
+
 ## 3. Start
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\start.ps1
@@ -29,6 +35,11 @@ Send `/start` to your bot. Keep the window open; Ctrl+C stops it safely.
 
 Don't know your Telegram id? Leave `OWNER_ID` empty, start the bot and send it any message — it replies with your id
 (and does nothing else). Put it in `.env` and restart.
+
+## Check the voice + animation (2D)
+1. 🩺 Diagnostics must show `✅ Awaaz (Piper): hi_IN-pratham-medium`.
+2. 🎬 Nayi video banao → 2D → story → characters with pictures → 🎤 Step 3: press 🔊 Suno on a character (you get a voice note).
+3. Final check → 🎬 Final video. The video arrives **with sound**, plus a `.srt` subtitle file.
 
 ## 4. Update later
 Stop the bot (Ctrl+C), then:
