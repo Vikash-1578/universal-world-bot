@@ -52,7 +52,19 @@ they prove our own logic, not that Telegram/AI/Blender behave the same way on th
 | Scene edit, reorder, duration, shot/transition, regenerate | ✅ | regenerate needs real AI (🟡) |
 | Storyboard approval gate; changes after approval need re-approval | ✅ | |
 | Telegram screens (Script Studio, Storyboard Studio) | ✅ | tests/integration/test_studio_flow.py (fake Telegram) |
-## Milestone 5 — Character and Environment Studio ⬜
+## Milestone 5 — Character and Environment Studio
+| Item | Status | Notes |
+|---|---|---|
+| Library items (character / environment / prop) with versions | ✅ | tests/unit/test_library.py |
+| Image import: auto background removal, 1080p background fit | ✅ | tested with generated images; real photos may need manual fix |
+| QC report: transparency, size, rig hints (neck, two legs) + manual approve | ✅ | |
+| Expressions + poses per character | ✅ | |
+| 1100+ templates (48 hand-made + 1056 generated + 97 places), search | ✅ | text profiles only — no images until made |
+| Project casting with version pinning ("naya version hai" warning) | ✅ | tests/integration/test_library_flow.py |
+| Portable packages: export / import with checksum + zip-slip protection | ✅ | |
+| AI description (Ollama) job | 🟡 | uses the same verified Ollama path; this prompt not yet tried on the laptop |
+| AI image (local ComfyUI) job | 🟡 | protocol tested with a fake ComfyUI; **ComfyUI not installed on laptop yet** |
+| Telegram: Character / Environment Studio, Templates, Casting | ✅ | fake Telegram session |
 ## Milestone 6 — Working 2D Pipeline ⬜
 ## Milestone 7 — Working 3D Pipeline (Blender) ⬜
 ## Milestone 8 — Audio and Subtitles ⬜
