@@ -178,6 +178,9 @@ async def role_menu(target, hub, pid: int, idx: int) -> None:
           [B(text="🖼 Apni image bhejo", callback_data=make("w", "own", pid, idx))]]
     if has:
         kb.append([B(text="👁 Image dekho", callback_data=make("lb", "see", it["id"]))])
+        if kind == "character":
+            n = sum(1 for k2 in it["files"] if k2.startswith("expr:") and not k2.endswith(":original"))
+            kb.append([B(text=f"🎭 Expressions banao ({n}/7 bane)", callback_data=make("w", "pack", pid, idx))])
     kb.append(nav(back=f"w|chars|{pid}"))
     await show(target, text, KB(inline_keyboard=kb))
 
@@ -577,6 +580,15 @@ async def cb_wizard(cb: CallbackQuery, hub) -> None:
             await show(cb, f"🖼 '{role}' ki image bhejo." + ("\nBackground: 16:9 photo/drawing." if kind == "environment" else
                        "\nSaade (white/green) background wali drawing best hai — bot background hata dega. 'File' ki tarah bhejoge to quality achhi rahegi."),
                        KB(inline_keyboard=[nav(back=f"w|role|{pid}|{idx}", cancel=True)]))
+        elif a == "pack":
+            from app.telegram.handlers.library import start_pack
+
+            pid, idx = c.int(0), c.int(1)
+            _k, role, kind = _role(hub, pid, idx)
+            cur = hub.library.casting(pid).get(role)
+            if not cur:
+                raise ValueError("stale")
+            await start_pack(cb, hub, cur["item_id"], recast={"project_id": pid, "role": role})
         elif a == "vstyle":
             from app.audio import tts as T
 

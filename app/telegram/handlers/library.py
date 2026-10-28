@@ -103,6 +103,8 @@ async def item_card(target, hub, iid: str) -> None:
              B(text="🎨 AI image", callback_data=make("lb", "aiimg", iid))]]
     if it["kind"] == "character":
         rows.append([B(text="😀 Expression", callback_data=make("lb", "exl", iid)), B(text="🧍 Pose", callback_data=make("lb", "pol", iid))])
+        if main in it["files"]:
+            rows.append([B(text="🎭 Expression pack banao (AI, laptop)", callback_data=make("lb", "pack", iid))])
     if it["kind"] == "environment":
         rows.append([B(text="🌙 Raat wali image", callback_data=make("lb", "img", iid, "background:night"))])
     rows += [[B(text="✏️ Description", callback_data=make("lb", "desc", iid)), B(text="✍️ AI description", callback_data=make("lb", "aidesc", iid))],
@@ -212,6 +214,39 @@ async def role_screen(target, hub, pid: int, idx: int) -> None:
     kb.append(nav(back=f"lb|cast|{pid}"))
     await show(target, f"🎭 '{role}' ke liye {'character' if k == 'c' else 'jagah'} chuno:" +
                ("" if own or tmpl else "\n(Library/templates me match nahi mila — naya banao.)"), KB(inline_keyboard=kb))
+
+
+async def start_pack(cb: CallbackQuery, hub, iid: str, recast: dict | None = None, back: str | None = None) -> None:
+    """Queue the 7 face expressions for one character (needs local ComfyUI)."""
+    from app.characters import pack
+
+    it = hub.library.get(iid)
+    if "main" not in it["files"]:
+        await answer(cb, "Pehle main image chahiye", alert=True)
+        return
+    comfy = getattr(hub.imagegen, "comfy", None)
+    if comfy is None or not await comfy.available():
+        await answer(cb, "Expression pack ke liye laptop par ComfyUI chalu karo (run_nvidia_gpu.bat).", alert=True)
+        return
+    have = [e for e in pack.ORDER if f"expr:{e}" in it["files"]]
+    todo = [e for e in pack.ORDER if e not in have]
+    if not todo:
+        await answer(cb, "Saare expressions pehle se bane hain", alert=True)
+        return
+    m = _m(cb)
+    inputs = {"item_id": iid, "exprs": todo}
+    if recast:
+        inputs["recast"] = recast
+    job = hub.jobs.submit_job(pack.JOB, None, inputs, 5, idempotency_key=f"pack:{iid}:{m.message_id if m else 0}",
+                              chat_id=m.chat.id if m else None, title=f"Expressions: {it['name'][:24]}")
+    hub.audit.record("library_pack", "queued", "item", iid, n=len(todo))
+    await answer(cb, "Expression pack ban raha hai")
+    if m:
+        await m.answer(f"🎭 {it['name']}: {len(todo)} expressions ban rahe hain ({', '.join(pack.EXPR[e][0] for e in todo)}).\n"
+                       "Sirf chehra dobara banta hai — kapde/body wahi rehte hain. Har ek ~20-60 sec.", parse_mode=None)
+        from app.telegram.handlers.jobs import send_card
+
+        await send_card(m, hub, job["id"])
 
 
 # ------------------------------------------------------------------ callbacks
@@ -328,6 +363,8 @@ async def cb_library(cb: CallbackQuery, hub) -> None:
                            "Ek-ek karke banenge (har ek ~20-60 sec). Har image banne ke baad casting apne aap naye version par chali jayegi.\n"
                            "Ho jaane par 🔄 Refresh dabao, phir 🎬 Animation se video banao.",
                        KB(inline_keyboard=[[B(text="⏳ Job Queue", callback_data=make("j", "list", 0))], nav(back=f"lb|cast|{pid}", refresh=f"lb|cast|{pid}")]))
+        elif a == "pack":
+            await start_pack(cb, hub, c.arg(0))
         elif a in ("aidesc", "aiimg"):
             iid = c.arg(0)
             lib.get(iid)

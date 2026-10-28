@@ -89,17 +89,62 @@ class ComfyUI:
             "7": {"class_type": "SaveImage", "inputs": {"images": ["6", 0], "filename_prefix": "uwb"}},
         }
 
-    async def generate(self, prompt: str, *, width: int = 832, height: int = 1216, seed: int | None = None,
-                       progress=None) -> bytes:
+    async def _ckpt(self) -> str:
         cks = await self.checkpoints()
         if not cks:
             raise ImageGenUnavailable(
                 "Image banane wala local AI (ComfyUI) nahi mila.\n"
                 "• ComfyUI install karke chalao (docs/model-compatibility.md me steps), aur ek SDXL checkpoint daalo\n"
                 "• Tab tak character ki photo/drawing khud upload karo — wo bhi poori tarah chalega")
-        ckpt = self.checkpoint if self.checkpoint in cks else cks[0]
+        return self.checkpoint if self.checkpoint in cks else cks[0]
+
+    async def generate(self, prompt: str, *, width: int = 832, height: int = 1216, seed: int | None = None,
+                       progress=None) -> bytes:
+        ckpt = await self._ckpt()
         seed = seed if seed is not None else random.randint(1, 2**31 - 1)
-        body = {"prompt": self.workflow(prompt, ckpt, width, height, seed), "client_id": uuid.uuid4().hex}
+        return await self._run(self.workflow(prompt, ckpt, width, height, seed), "7", progress)
+
+    async def upload(self, png: bytes, name: str) -> str:
+        """Put an image into ComfyUI's input folder (local HTTP, nothing leaves the laptop). Returns its name."""
+        form = aiohttp.FormData()
+        form.add_field("image", png, filename=name, content_type="image/png")
+        form.add_field("overwrite", "true")
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60)) as s:
+                async with s.post(f"{self.url}/upload/image", data=form) as r:
+                    j = await r.json(content_type=None)
+                    if r.status != 200 or "name" not in j:
+                        raise ProviderUnavailable("ComfyUI upload fail.", detail=str(j)[:200])
+                    return (j.get("subfolder") + "/" if j.get("subfolder") else "") + j["name"]
+        except (aiohttp.ClientError, asyncio.TimeoutError, OSError) as e:
+            raise ProviderUnavailable("ComfyUI se baat nahi ho payi.", detail=type(e).__name__) from e
+
+    def inpaint_workflow(self, image_name: str, prompt: str, negative: str, ckpt: str, seed: int, denoise: float) -> dict:
+        """Repaint only the transparent part of the uploaded picture (LoadImage turns transparency into a mask);
+        everything else stays as drawn. Works with any normal checkpoint (no special inpaint model needed)."""
+        return {
+            "1": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": ckpt}},
+            "2": {"class_type": "CLIPTextEncode", "inputs": {"text": prompt, "clip": ["1", 1]}},
+            "3": {"class_type": "CLIPTextEncode", "inputs": {"text": negative, "clip": ["1", 1]}},
+            "4": {"class_type": "LoadImage", "inputs": {"image": image_name}},
+            "8": {"class_type": "VAEEncode", "inputs": {"pixels": ["4", 0], "vae": ["1", 2]}},
+            "9": {"class_type": "SetLatentNoiseMask", "inputs": {"samples": ["8", 0], "mask": ["4", 1]}},
+            "5": {"class_type": "KSampler", "inputs": {"model": ["1", 0], "positive": ["2", 0], "negative": ["3", 0], "latent_image": ["9", 0],
+                                                       "seed": seed, "steps": self.steps, "cfg": self.cfg, "sampler_name": "euler",
+                                                       "scheduler": "normal", "denoise": denoise}},
+            "6": {"class_type": "VAEDecode", "inputs": {"samples": ["5", 0], "vae": ["1", 2]}},
+            "7": {"class_type": "SaveImage", "inputs": {"images": ["6", 0], "filename_prefix": "uwb_pack"}},
+        }
+
+    async def inpaint(self, png_with_hole: bytes, prompt: str, *, negative: str = "", denoise: float = 0.72, seed: int | None = None,
+                      progress=None) -> bytes:
+        ckpt = await self._ckpt()
+        name = await self.upload(png_with_hole, f"uwb_in_{uuid.uuid4().hex[:10]}.png")
+        seed = seed if seed is not None else random.randint(1, 2**31 - 1)
+        return await self._run(self.inpaint_workflow(name, prompt, negative or NEGATIVE, ckpt, seed, denoise), "7", progress)
+
+    async def _run(self, graph: dict, out_node: str, progress=None) -> bytes:
+        body = {"prompt": graph, "client_id": uuid.uuid4().hex}
         try:
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as s:
                 async with s.post(f"{self.url}/prompt", json=body) as r:
@@ -115,7 +160,7 @@ class ComfyUI:
                     async with s.get(f"{self.url}/history/{pid}") as r:
                         h = await r.json(content_type=None)
                     if pid in h:
-                        out = h[pid].get("outputs", {}).get("7", {}).get("images", [])
+                        out = h[pid].get("outputs", {}).get(out_node, {}).get("images", [])
                         if not out:
                             raise ProviderUnavailable("ComfyUI ne image nahi di.", detail=str(h[pid].get("status"))[:200])
                         img = out[0]
