@@ -3,9 +3,9 @@
 keys.txt
 *.key
 # local data, models, renders, databases
-data/
-logs/
-models/
+/data/
+/logs/
+/models/
 *.db
 *.db-*
 *.blend1
