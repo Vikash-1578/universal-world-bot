@@ -1,5 +1,6 @@
 """Milestone 6: storyboard + casting -> plan -> real FFmpeg render -> validated export, restart reuse, approval gate,
 Telegram screens. Pictures are generated with Pillow in the test; the renderer and FFmpeg are REAL (no mocks)."""
+import asyncio
 import io
 
 from PIL import Image
@@ -9,7 +10,7 @@ from app.animation.two_d import planner, puppet
 from app.animation.two_d.rig import Rig
 from app.core.errors import Conflict
 from app.telegram.callbacks.codec import make
-from tests.helpers import STRANGER, TempDirCase, buttons, cb_update, feed, make_bot_and_dp, make_hub, needs_ffmpeg, texts
+from tests.helpers import OWNER, STRANGER, TempDirCase, buttons, cb_update, feed, make_bot_and_dp, make_hub, needs_ffmpeg, texts
 from tests.unit.test_library import background, figure_on_green
 from tests.unit.test_script_storyboard import SCRIPT
 
@@ -108,7 +109,8 @@ class AnimationFlowTests(TempDirCase):
         plan = planner.build(self.hub, self.pid, "preview")
         self.assertFalse([w for w in plan["warnings"] if "Khargosh" in w or "Jungle" in w])
         self.assertTrue(plan["scenes"][0]["actors"][0].get("main"))
-        job = anim_jobs.start(self.hub, self.pid, "preview")
+        bot, dp, sess = make_bot_and_dp(self.hub)  # fake Telegram (test double) to see the finished video being sent
+        job = anim_jobs.start(self.hub, self.pid, "preview", chat_id=OWNER)
         await self.hub.jobs.start()
         await self.hub.jobs.wait_idle(timeout=240)
         j = self.hub.jobs.get_job(job["id"])
@@ -118,6 +120,8 @@ class AnimationFlowTests(TempDirCase):
         meta = outs[0]["meta"]
         self.assertEqual((meta["width"], meta["height"], meta["fps"], meta["scenes"]), (640, 360, 12, 2))
         self.assertTrue(outs[0]["abs"].exists())
+        await asyncio.sleep(0.2)
+        self.assertIn("SendVideo", [n for n, _ in sess.calls])
         from app.exports.validate import check, probe
 
         info = await probe(self.hub.settings, outs[0]["abs"])
