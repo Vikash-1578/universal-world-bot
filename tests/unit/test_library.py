@@ -74,7 +74,8 @@ class LibraryTests(TempDirCase):
     async def test_templates_catalog(self):
         self.assertGreaterEqual(len(templates.entries()), 1100)
         self.assertGreaterEqual(len(templates.entries(kind="place")), 90)
-        self.assertEqual(templates.search("sher jungle")[0]["kind"], "actor")
+        self.assertEqual(templates.search("sher", "actor")[0]["kind"], "actor")
+        self.assertEqual(templates.search("jungle", "place")[0]["kind"], "place")
         self.assertTrue(templates.categories("actor"))
 
     async def test_create_versions_images_qc(self):

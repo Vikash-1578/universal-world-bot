@@ -124,8 +124,8 @@ def analyse(im: Image.Image, kind: str = "character") -> QC:
     if kind == "character":
         if not transparent:
             problems.append("Background nahi hata — plain/green background wali photo ya transparent PNG bhejo.")
-        if min(w, h) < 200:
-            problems.append("Image chhoti hai (kam se kam 200px) — animation dhundhli lagegi.")
+        if h < 300 or w < 60:
+            problems.append("Image chhoti hai (character kam se kam 300px lamba ho) — animation dhundhli lagegi.")
         if transparent and not 0.08 <= coverage <= 0.95:
             problems.append("Figure bahut chhota ya bahut bada hai frame me.")
         if transparent:
