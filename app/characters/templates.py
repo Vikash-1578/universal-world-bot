@@ -7,7 +7,7 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
-DATA = Path(__file__).resolve().parent / "data" / "catalog.json"
+DATA = Path(__file__).resolve().parent / "catalog_files" / "catalog.json"
 EXTRA_CATS = {
     "ghar": "🏠 Ghar-parivaar", "shahar": "🏙 Shahar", "professions": "👷 Kaam-dhande", "dharmik": "🛕 Dharmik",
     "keede": "🐞 Keede", "samundar": "🐠 Samundar", "fantasy": "🧚 Fantasy", "sabzi-phal": "🥕 Sabzi-Phal",
