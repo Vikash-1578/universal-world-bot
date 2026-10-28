@@ -116,7 +116,7 @@ def parse(text: str, max_lines_per_auto_scene: int = 6) -> ParsedScript:
             current.lines.append(Line("action", pm.group(1).strip()))
             continue
         m = _LINE_RE.match(line)
-        if m and not re.match(r"^https?$", m.group(1).strip(), re.I):
+        if m and not m.group(2).startswith("//") and not re.search(r"https?$", m.group(1).strip(), re.I):
             name, is_narr = _speaker(m.group(1))
             body = m.group(2).strip()
             direction = ""

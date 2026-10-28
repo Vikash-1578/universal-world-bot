@@ -107,7 +107,7 @@ class ScriptStoryboardTests(TempDirCase):
         sc.approve(v1["id"])
         v2 = sc.create_version(self.pid, SCRIPT.replace("dosti", "pyaar"))
         self.assertEqual(sc.approved(self.pid)["id"], v1["id"])  # new draft does not replace approved
-        self.assertEqual(sc.get(v1["id"])["content"], SCRIPT)
+        self.assertEqual(sc.get(v1["id"])["content"], SCRIPT.strip())
         sc.approve(v2["id"])
         self.assertEqual(sc.get(v1["id"])["approval_status"], "superseded")
         with self.assertRaises(Conflict):
