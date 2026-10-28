@@ -61,11 +61,26 @@ class ComfyUI:
     async def available(self) -> bool:
         return bool(await self.checkpoints())
 
+    @staticmethod
+    def sdxl_prompt(prompt: str) -> tuple[str, str]:
+        """SDXL's text encoder only reads the first ~77 tokens, so the long character description used to push the
+        'plain white background' instruction out (owner's first ComfyUI picture had a temple behind the figure).
+        For characters, put the layout first and weight it; add scenery words to the negative prompt."""
+        if CHARACTER_SUFFIX.strip(", ") and CHARACTER_SUFFIX in prompt:
+            body = prompt.replace(CHARACTER_SUFFIX, "").strip(" ,")
+            pos = ("(single full body character standing, isolated on plain flat white background:1.4), (simple white background:1.3), "
+                   + body[:400])
+            neg = NEGATIVE + ", scenery, landscape, building, architecture, temple, arch, pillars, room, interior, sky, trees, " \
+                             "detailed background, multiple characters"
+            return pos, neg
+        return prompt, NEGATIVE
+
     def workflow(self, prompt: str, ckpt: str, width: int, height: int, seed: int) -> dict:
+        prompt, negative = self.sdxl_prompt(prompt)
         return {
             "1": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": ckpt}},
             "2": {"class_type": "CLIPTextEncode", "inputs": {"text": prompt, "clip": ["1", 1]}},
-            "3": {"class_type": "CLIPTextEncode", "inputs": {"text": NEGATIVE, "clip": ["1", 1]}},
+            "3": {"class_type": "CLIPTextEncode", "inputs": {"text": negative, "clip": ["1", 1]}},
             "4": {"class_type": "EmptyLatentImage", "inputs": {"width": width, "height": height, "batch_size": 1}},
             "5": {"class_type": "KSampler", "inputs": {"model": ["1", 0], "positive": ["2", 0], "negative": ["3", 0], "latent_image": ["4", 0],
                                                        "seed": seed, "steps": self.steps, "cfg": self.cfg, "sampler_name": "euler",

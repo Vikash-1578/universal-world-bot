@@ -276,3 +276,17 @@ class QuotaTests(TempDirCase):
             self.assertEqual(len(calls), 1)  # stops at the first 'daily limit' answer
         finally:
             await srv.close()
+
+
+class SdxlPromptTests(TempDirCase):
+    async def test_character_layout_first_and_scenery_negative(self):
+        from app.models.imagegen import CHARACTER_SUFFIX, ComfyUI
+
+        long_look = "bright 2D cartoon, " + "an old Indian priest with saffron robes, rudraksha beads, " * 6
+        pos, neg = ComfyUI.sdxl_prompt(long_look + CHARACTER_SUFFIX)
+        self.assertTrue(pos.startswith("(single full body character standing, isolated on plain flat white background"))
+        self.assertIn("temple", neg)
+        g = ComfyUI().workflow(long_look + CHARACTER_SUFFIX, "x.safetensors", 832, 1216, 1)
+        self.assertEqual(g["2"]["inputs"]["text"], pos)
+        bg_pos, bg_neg = ComfyUI.sdxl_prompt("a jungle, wide establishing shot")
+        self.assertEqual(bg_pos, "a jungle, wide establishing shot")  # backgrounds unchanged
