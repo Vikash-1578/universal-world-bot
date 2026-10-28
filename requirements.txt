@@ -1,4 +1,4 @@
-# Pinned to versions verified together (Python 3.11-3.13). See docs/installation.md
+# Pinned to versions verified together (Python 3.11-3.14). See docs/installation.md
 aiogram>=3.20,<4
 aiohttp>=3.10,<4
 Pillow>=10.4,<12

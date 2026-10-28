@@ -2,7 +2,7 @@
   Universal World Bot - Windows installer (no administrator rights needed)
 
   What it does, step by step:
-    1. Checks Python (3.11 - 3.13)
+    1. Checks Python (3.11 - 3.14)
     2. Creates a private Python environment in .\venv (does not touch system Python)
     3. Installs the pinned packages from requirements.txt
     4. Creates .env (asks for your bot token + Telegram id) if it does not exist
@@ -31,15 +31,15 @@ function Fail($text, $fix) {
 Step 1 "Python check"
 $py = $null
 function PyArgs($cand) { $p = $cand.Split(" "); if ($p.Length -gt 1) { return ,@($p[1..($p.Length - 1)]) } else { return ,@() } }
-foreach ($cand in @("py -3.12", "py -3.13", "py -3.11", "python")) {
+foreach ($cand in @("py -3.12", "py -3.13", "py -3.14", "py -3.11", "python")) {
     $exe = $cand.Split(" ")[0]; $pre = PyArgs $cand
     try {
         $v = & $exe @pre -c "import sys; print('%d.%d' % sys.version_info[:2])" 2>$null
-        if ($LASTEXITCODE -eq 0 -and $v -match '^3\.(11|12|13)$') { $py = $cand; break }
+        if ($LASTEXITCODE -eq 0 -and $v -match '^3\.(11|12|13|14)$') { $py = $cand; break }
     } catch { }
 }
 if (-not $py) {
-    Fail "Python 3.11 / 3.12 / 3.13 nahi mila" "python.org se Python 3.12 install karo (install ke time 'Add python.exe to PATH' tick karna), phir ye script dobara chalao."
+    Fail "Python 3.11 - 3.14 nahi mila" "python.org se Python 3.12 install karo (install ke time 'Add python.exe to PATH' tick karna), phir ye script dobara chalao."
 }
 Ok "Python mila: $py ($v)"
 
