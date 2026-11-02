@@ -80,16 +80,16 @@ def build_hub(settings: Settings) -> Hub:
     hub.storyboards = StoryboardService(db, hub.projects, hub.scripts, hub.llm)
     from app.characters.service import LibraryService
     from app.audio.tts import TTS
-    from app.models.free_images import FreeImages
-from app.models.imagegen import CloudflareImages, ComfyUI, ImageRouter
+from app.rendering.engine import RenderEngine
+    from app.models.imagegen import CloudflareImages, ComfyUI, ImageRouter
 
     img_cfg = settings.raw.get("image", {})
     hub.library = LibraryService(db, settings.data_dir)
     comfy = ComfyUI(img_cfg.get("comfyui_url", "http://127.0.0.1:8188"), img_cfg.get("checkpoint", ""), int(img_cfg.get("steps", 24)))
     cf = CloudflareImages(settings.key("cf_account_id", "cloudflare_account_id"), settings.key("cf_api_token", "cloudflare_api_token", "cloudflare"))
     hub.imagegen = ImageRouter(comfy, cf, lambda: hub.cloud_enabled, lambda: hub.db.get_setting("ai_order", "local") == "cloud")
-    hub.free_gen = FreeImages()
     hub.tts = TTS()
+    hub.renderer = RenderEngine(settings.data_dir)
     from app.pipelines import register_all  # job handlers for each milestone
 
     from app.telegram.conversations.state import Conversations
