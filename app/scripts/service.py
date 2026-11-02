@@ -24,7 +24,7 @@ LANG = {"hindi": "Hindi (Devanagari script)", "english": "English", "hinglish": 
 WRITE_PROMPT = """You are a researcher and scriptwriter for a faceless YouTube channel about amazing facts, history, geography,
 science and mysteries. Write an ORIGINAL narration script.
 Topic: {idea}
-Language for the narration: {lang}. Audience: {audience}. Tone: {tone}. Target length: about {seconds} seconds.
+{notes}Language for the narration: {lang}. Audience: {audience}. Tone: {tone}. Target length: about {seconds} seconds.
 
 Content rules:
 - Start with a strong hook in the very first line (a surprising fact or question). End with a clear closing line.
@@ -142,7 +142,7 @@ class ScriptService:
         return parser.parse(self.get(script_id)["content"])
 
     # ---------------------------------------------------------------- AI
-    async def write_with_ai(self, project_id: int, idea: str) -> dict:
+    async def write_with_ai(self, project_id: int, idea: str, notes: str = "") -> dict:
         if self.llm is None:
             from app.models.llm import LLMUnavailable
 
@@ -153,7 +153,7 @@ class ScriptService:
         s = self.projects.get_project(project_id)["settings"]
         prompt = WRITE_PROMPT.format(idea=idea, lang=LANG.get(s.get("language", "hinglish"), "Hinglish (Hindi in Latin letters)"),
                                      audience=s.get("audience", "general"), tone=s.get("tone", "curious"),
-                                     seconds=s.get("target_seconds", 60))
+                                     seconds=s.get("target_seconds", 60), notes=_notes_block(notes))
         text = await self.llm.chat(prompt, max_tokens=3000)
         return self.create_version(project_id, _clean(text), note=f"AI ({self.llm.last_provider})")
 
@@ -177,6 +177,14 @@ class ScriptService:
         s = self.get(script_id)
         text = await self.llm.chat(REVISE_PROMPT.format(instruction=instruction[:500], script=s["content"]), max_tokens=3500)
         return self.create_version(s["project_id"], _clean(text), language=s["language"])
+
+
+def _notes_block(notes: str) -> str:
+    notes = (notes or "").strip()[:4000]
+    if not notes:
+        return ""
+    return ("Use ONLY these checked facts (do not add other facts; claims marked [disputed] must be presented as theory/legend):\n"
+            + notes + "\n")
 
 
 def _clean(text: str) -> str:

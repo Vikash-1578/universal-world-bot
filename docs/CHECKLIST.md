@@ -53,7 +53,17 @@ they prove our own logic, not that Telegram/AI behave the same way on the owner'
 ## Removed (2026-11) — cartoon pipeline
 Character/environment library, storyboards, 2D animation, Blender 3D and ComfyUI image AI were removed; the channel is faceless facts/history/mystery.
 
-## Next — Agents (laptop first)
+## Agents (laptop first) — step 1 built, branch `agents`
+| Item | Status | Notes |
+|---|---|---|
+| Manager job `video_pipeline`: research → fact-check → script → quality (max 2 auto revisions), resumable stages | ✅ sandbox / ⬜ laptop | tests/unit/test_agents.py (fake AI) |
+| Research agent (model memory only, labelled `model_memory`; no live sources yet) | 🟡 | real Ollama quality not tried |
+| Fact-Check agent: second-pass verdicts, weak/disputed claims dropped, unbacked numbers flagged | 🟡 | safety net, not proof |
+| Quality Checker (deterministic, offline) | ✅ | |
+| Never approves a script automatically | ✅ | |
+| Telegram button 🚀 Auto video script (agents) | ✅ sandbox / ⬜ laptop | |
+
+## Next — remaining agents
 Manager, Research, Fact-Check, Script, Quality Checker → then Voice (own cloned voice), Media (licensed footage + licence log), Editor → later Thumbnail, SEO, Uploader, Community, Analytics, Config.
 
 ## Milestone 8 — Audio and Subtitles ⬜

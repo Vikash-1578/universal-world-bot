@@ -69,7 +69,8 @@ async def show_script(target, hub, pid: int) -> None:
             lines.append(f"Approved abhi bhi: v{approved['version_number']}")
     lines.append("\n🤖 AI: " + ("chalu" if llm_ok else "band (Ollama nahi mila / Cloud AI OFF) — khud likhi script chalegi"))
     kb = [[B(text="✍️ Script bhejo (text/file)", callback_data=make("ss", "send", pid))],
-          [B(text="🤖 AI se likhwao", callback_data=make("ss", "ai", pid))]]
+          [B(text="🤖 AI se likhwao", callback_data=make("ss", "ai", pid))],
+          [B(text="🚀 Auto video script (agents)", callback_data=make("ss", "auto", pid))]]
     if latest:
         kb.append([B(text="👁 Poori padho", callback_data=make("ss", "view", latest["id"])),
                    B(text="🕘 Versions", callback_data=make("ss", "vers", pid))])
@@ -114,6 +115,15 @@ async def cb_script(cb: CallbackQuery, hub) -> None:
             conv.set(cb.from_user.id, "script_idea", project_id=pid)
             await answer(cb)
             await show(cb, "🤖 Video ka topic likho (1-3 line). Jaise: 'Bermuda Triangle ke gayab hone ke raaz aur science ki sachchai'",
+                       KB(inline_keyboard=[nav(back=f"ss|open|{pid}", cancel=True)]))
+        elif a == "auto":
+            pid = c.int(0)
+            if not await hub.llm.available():
+                await answer(cb, "AI band hai — Ollama chalao ya Cloud AI ON karo", alert=True)
+                return
+            conv.set(cb.from_user.id, "pipeline_topic", project_id=pid)
+            await answer(cb)
+            await show(cb, "🚀 Agents: Research → Fact-check → Script → Quality check.\nTopic likho (1-3 line). Jaise: 'Bermuda Triangle ke raaz aur science'",
                        KB(inline_keyboard=[nav(back=f"ss|open|{pid}", cancel=True)]))
         elif a == "revise":
             s = hub.scripts.get(c.int(0))
@@ -180,6 +190,15 @@ async def on_text(message: Message, hub, step: str, data: dict) -> bool:
         conv.clear(uid)
         await message.answer(f"✅ Script v{v['version_number']} save hui (draft).", parse_mode=None)
         await show_script(message, hub, int(data["project_id"]))
+        return True
+    if step == "pipeline_topic":
+        pid = int(data["project_id"])
+        job = hub.jobs.submit_job("video_pipeline", pid, {"project_id": pid, "topic": text[:800]}, 3,
+                                  idempotency_key=f"vp:{uid}:{message.message_id}", chat_id=message.chat.id, title="Auto script (agents)")
+        conv.clear(uid)
+        from app.telegram.handlers.jobs import send_card
+
+        await send_card(message, hub, job["id"])
         return True
     if step in ("script_idea", "script_revise"):
         pid = int(data["project_id"])
