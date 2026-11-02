@@ -80,6 +80,8 @@ def build_hub(settings: Settings) -> Hub:
     hub.storyboards = StoryboardService(db, hub.projects, hub.scripts, hub.llm)
     from app.characters.service import LibraryService
     from app.audio.tts import TTS
+from app.agents.research import ResearchAgent
+from app.agents.accuracy import AccuracyAgent
 from app.rendering.engine import RenderEngine
     from app.models.imagegen import CloudflareImages, ComfyUI, ImageRouter
 
@@ -89,6 +91,8 @@ from app.rendering.engine import RenderEngine
     cf = CloudflareImages(settings.key("cf_account_id", "cloudflare_account_id"), settings.key("cf_api_token", "cloudflare_api_token", "cloudflare"))
     hub.imagegen = ImageRouter(comfy, cf, lambda: hub.cloud_enabled, lambda: hub.db.get_setting("ai_order", "local") == "cloud")
     hub.tts = TTS()
+    hub.research_agent = ResearchAgent(hub)
+    hub.accuracy_agent = AccuracyAgent(hub)
     hub.renderer = RenderEngine(settings.data_dir)
     from app.pipelines import register_all  # job handlers for each milestone
 
