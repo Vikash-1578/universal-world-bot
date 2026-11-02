@@ -34,7 +34,7 @@ def format_report(topic: str, version: int, q: dict, kept: int, dropped: int, re
 
 
 def register(hub: "Hub") -> None:
-    async def video_pipeline(ctx: "JobContext") -> dict:
+    async def _pipeline(ctx: "JobContext") -> dict:
         pid = int(ctx.inputs["project_id"])
         brief = Brief.from_project(hub, pid, ctx.inputs["topic"])
         if len(brief.topic) < 5:
@@ -104,5 +104,17 @@ def register(hub: "Hub") -> None:
                 pass
         hub.audit.record("agent_pipeline", "ok", "project", pid, script=script_id, score=q["data"]["score"])
         return {"script_id": script_id, "version": version, "passed": bool(q["ok"]), "score": q["data"]["score"], "report": report}
+
+    async def video_pipeline(ctx: "JobContext") -> dict:
+        try:
+            return await _pipeline(ctx)
+        except InvalidInput as e:  # tell the owner WHY, in plain words, instead of a silent failed job
+            chat_id = ctx.job.get("chat_id")
+            if hub.bot is not None and chat_id:
+                try:
+                    await hub.bot.send_message(chat_id, f"⚠️ Video #{ctx.id} ruk gayi:\n{e.user_message if hasattr(e, 'user_message') else e}", parse_mode=None)
+                except Exception:  # noqa: BLE001
+                    pass
+            raise
 
     hub.jobs.register("video_pipeline", video_pipeline, max_attempts=1, title="Auto script (agents)")

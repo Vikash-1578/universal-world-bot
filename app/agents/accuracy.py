@@ -137,7 +137,11 @@ class AccuracyAgent(Agent):
             "disputed": [self._export(store, c) for c in claims if c.status == "disputed"],
             "dropped": [c.text for c in claims if c.status == "dropped"]})
         if not res.ok:
-            res.notes.append(f"Sirf {len(acc)} claim proof ke saath bache (minimum {MIN_ACCEPTED}).")
+            doms = {x.domain for x in store.sources.values()}
+            res.notes.append(f"Sirf {len(acc)} claim proof ke saath bache (minimum {MIN_ACCEPTED}). Mili: {len(store.sources)} pages, "
+                             f"{len(doms)} alag site ({', '.join(sorted(doms)[:4])}).")
+            if len(doms) < 2:
+                res.notes.append("Proof ke liye 2 alag sites chahiye — internet/search check karo ya keys.txt me brave:<key> daalo.")
         self.save(brief.project_id, res)
         self.write_proof(brief.project_id, res.data)
         return res

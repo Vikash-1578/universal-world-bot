@@ -79,3 +79,10 @@ class ManagerChatTests(TempDirCase):
         self.use([json.dumps({"intent": "delete_everything", "topic": "x"}), "Theek hai, bata do."])
         self.assertEqual(await self.say("kuch ajeeb sa"), "Theek hai, bata do.")  # unknown intent -> plain chat
         self.assertIn("koi kaam nahi", await self.say("status"))
+
+    async def test_greeting_is_canned_and_haa_with_duration_sets_length(self):
+        self.use(smart=True)
+        self.assertIn("Manager hoon", await self.say("hello"))
+        await self.say("naya video: Bermuda Triangle ke raaz", mid=2)
+        self.assertIn("10 min", await self.say("haa 10 mins ki video honi chahiye", mid=3))
+        self.assertEqual(self.hub.projects.get_project(self.m.project_id)["settings"]["target_seconds"], 600)

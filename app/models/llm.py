@@ -130,6 +130,8 @@ class LLM:
     async def _call(self, p: Provider, key: str, prompt: str, system: str, max_tokens: int, temperature: float,
                     json_mode: bool) -> str:
         msgs = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": prompt}]
+        if p.local:
+            return await self._call_ollama(p, msgs, max_tokens, temperature, json_mode)
         body: dict = {"model": p.model, "messages": msgs, "max_tokens": max_tokens, "temperature": temperature}
         if json_mode and p.name in ("groq", "gemini", "openrouter", "mistral", "ollama"):
             body["response_format"] = {"type": "json_object"}
@@ -145,6 +147,33 @@ class LLM:
                         raise ProviderUnavailable("provider error", detail=f"http {r.status} {raw[:160]}")
             j = json.loads(raw)
             text = (j.get("choices") or [{}])[0].get("message", {}).get("content") or ""
+        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError, KeyError) as e:
+            raise ProviderUnavailable("provider error", detail=type(e).__name__) from e
+        text = strip_thinking(text)
+        if not text:
+            raise ProviderUnavailable("provider error", detail="empty reply")
+        return text
+
+    async def _call_ollama(self, p: Provider, msgs: list, max_tokens: int, temperature: float, json_mode: bool) -> str:
+        """Native Ollama API: `think: false` stops reasoning models (qwen3 ...) from spending the whole token budget on
+        hidden thinking and returning an EMPTY answer. Models without thinking support get a retry without the flag."""
+        body: dict = {"model": p.model, "messages": msgs, "stream": False, "think": False,
+                      "options": {"num_predict": max_tokens, "temperature": temperature}}
+        if json_mode:
+            body["format"] = "json"
+        timeout = aiohttp.ClientTimeout(total=self.timeout * 3)
+        try:
+            async with aiohttp.ClientSession(timeout=timeout) as s:
+                for attempt in range(2):
+                    async with s.post(f"{self.ollama_url}/api/chat", json=body) as r:
+                        raw = await r.text()
+                        if r.status == 400 and "think" in raw.lower() and attempt == 0:
+                            body.pop("think", None)
+                            continue
+                        if r.status != 200:
+                            raise ProviderUnavailable("provider error", detail=f"http {r.status} {raw[:160]}")
+                        break
+            text = (json.loads(raw).get("message") or {}).get("content") or ""
         except (aiohttp.ClientError, asyncio.TimeoutError, ValueError, KeyError) as e:
             raise ProviderUnavailable("provider error", detail=type(e).__name__) from e
         text = strip_thinking(text)

@@ -156,7 +156,13 @@ class LLMTests(TempDirCase):
             hits["local" if "Authorization" not in req.headers else "cloud"] += 1
             return web.json_response({"choices": [{"message": {"content": f"hi from {body['model']}"}}]})
 
+        async def native(req):  # local Ollama is called through its native API
+            body = await req.json()
+            hits["local"] += 1
+            return web.json_response({"message": {"content": f"hi from {body['model']}"}})
+
         app = web.Application()
+        app.router.add_post("/api/chat", native)
         app.router.add_get("/api/tags", tags)
         app.router.add_post("/v1/chat/completions", chat)
         srv = TestServer(app)

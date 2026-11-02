@@ -6,7 +6,7 @@ import asyncio
 import ipaddress
 import re
 from html.parser import HTMLParser
-from urllib.parse import quote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 import aiohttp
 
@@ -93,6 +93,29 @@ def html_to_text(html: str) -> tuple[str, str]:
     return " ".join(p.title.split())[:200], text
 
 
+_DDG_A = re.compile(r"<a\s[^>]*class=\"[^\"]*result__a[^\"]*\"[^>]*>", re.I | re.S)
+_HREF = re.compile(r"href=\"([^\"]+)\"", re.I)
+
+
+def parse_ddg(html: str) -> list[dict]:
+    """DuckDuckGo HTML results -> [{url, title}] (their redirect links are unwrapped). Best effort: layout may change."""
+    out = []
+    for m in _DDG_A.finditer(html):
+        h = _HREF.search(m.group(0))
+        if not h:
+            continue
+        href = h.group(1).replace("&amp;", "&")
+        if href.startswith("//"):
+            href = "https:" + href
+        q = parse_qs(urlparse(href).query)
+        url = unquote(q["uddg"][0]) if "uddg" in q else href
+        end = html.find("</a>", m.end())
+        title = re.sub(r"<[^>]+>", "", html[m.end():end if end > 0 else m.end() + 200])
+        if safe_url(url):
+            out.append({"url": url, "title": " ".join(title.split())[:120]})
+    return out
+
+
 class Web:
     def __init__(self, brave_key: str = "", timeout: float = 15.0) -> None:
         self.brave_key = brave_key
@@ -124,6 +147,14 @@ class Web:
                             hits.append({"url": h["url"], "title": str(h.get("title", ""))[:120]})
                 except Exception as e:  # noqa: BLE001
                     log.warning("brave_search_failed %s", type(e).__name__)
+        if len({domain_of(h["url"]) for h in hits}) < 3:  # keyless fallback so the owner is not stuck with Wikipedia only
+            try:
+                async with aiohttp.ClientSession(timeout=self.timeout, headers=UA) as s:
+                    async with s.get("https://html.duckduckgo.com/html/", params={"q": query}) as r:
+                        r.raise_for_status()
+                        hits += parse_ddg(await r.text())[:limit + 2]
+            except Exception as e:  # noqa: BLE001
+                log.warning("ddg_search_failed %s", type(e).__name__)
         seen, out = set(), []
         for h in hits:
             if h["url"] not in seen:

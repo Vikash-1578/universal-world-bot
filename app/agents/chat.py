@@ -14,7 +14,9 @@ from app.scheduler.service import ACTIVE
 if TYPE_CHECKING:
     from app.container import Hub
 
-YES = {"haan", "han", "ha", "yes", "y", "ok", "okay", "theek", "thik", "kar do", "kardo", "karo", "done"}
+YES_RE = re.compile(r"^(ha+n?|haan ?ji|yes|y|ok|okay|theek|thik|kar do|kardo|karo|done)\b")
+GREET = {"hello", "hi", "hii", "hey", "namaste", "hlo", "helo", "hello bhai", "hi bhai"}
+ACK = {"ok", "okay", "acha", "accha", "thik hai", "theek hai", "hmm", "thanks", "shukriya"}
 NO = {"nahi", "nahin", "no", "n", "mat", "ruko", "cancel", "rehne do"}
 INTENT_PROMPT = """You are the Manager of a YouTube video production team. Classify the owner's message (Hinglish).
 Message: {text}
@@ -22,7 +24,7 @@ Return ONLY JSON: {{"intent": "new_video|status|show_script|approve|revise|team|
 new_video = wants a new video (put the topic in "topic"). revise = wants changes to the current script (put them in "instruction").
 chat = anything else."""
 CHAT_SYSTEM = ("You are the Manager of a small faceless YouTube team (facts, history, geography, science, mystery; channel Verinomia). "
-               "Reply in short Hinglish (Hindi in Latin letters), 1-3 sentences. Be honest; never promise views or 100% accuracy.")
+               "Reply in short Hinglish (Hindi in Latin letters), 1-2 sentences. Only talk about video planning. Never invent facts about what the team has done or promised; never mention accuracy percentages.")
 HELP = ("Main tumhara Manager hoon. Bolo, jaise:\n• 'naya video: Bermuda Triangle ka sach'\n• 'status' — kaam kahan tak pahuncha\n"
         "• 'script dikhao'\n• 'approve' — script pakki (pehle puchunga)\n• 'script me hook tez karo'\n• 'team' — kaun kaun kya karta hai")
 
@@ -75,6 +77,10 @@ class ManagerChat:
             return "approve", "", ""
         if w in ("help", "madad", "start"):
             return "help", "", ""
+        if w in GREET:
+            return "greet", "", ""
+        if w in ACK:
+            return "ack", "", ""
         return "chat", "", ""
 
     async def _llm_intent(self, text: str) -> tuple[str, str, str]:
@@ -98,6 +104,10 @@ class ManagerChat:
         hub, conv = self.hub, self.hub.extra["conv"]
         if intent == "help":
             return HELP
+        if intent == "greet":
+            return "Namaste! Main tumhara Manager hoon. Naya video chahiye to bolo: 'naya video: <topic>'. Baaki sab ke liye 'help'."
+        if intent == "ack":
+            return "👍 Bolo, ab kya karna hai? ('naya video: <topic>' ya 'help')"
         if intent == "team":
             return team_text()
         if intent == "status":
@@ -133,17 +143,20 @@ class ManagerChat:
         if w in NO or w.split(" ")[0] in NO:
             conv.clear(uid)
             return "Theek hai, kuch nahi kiya."
-        if not (w in YES or w.split(" ")[0] in YES):
+        if not YES_RE.match(w):
             return "Seedha bolo: haan ya nahi."
         conv.clear(uid)
         act = data["action"]
         if act == "new_video":
             name = re.sub(r"\s+", " ", data["topic"])[:60]
-            p = hub.projects.create_project(name)
+            mins = re.search(r"(\d{1,2})\s*(?:min|mins|minute|minutes|मिनट)", text.lower())
+            settings = {"target_seconds": int(mins.group(1)) * 60} if mins and 1 <= int(mins.group(1)) <= 30 else {}
+            p = hub.projects.create_project(name, settings=settings)
             self._set_project(p["id"])
             job = hub.jobs.submit_job("video_pipeline", p["id"], {"project_id": p["id"], "topic": data["topic"]}, 3,
                                       idempotency_key=f"mgr:{uid}:{message_id}", chat_id=chat_id, title="Auto script (agents)")
-            return f"✅ Shuru. Project '{name}' bana, job #{job['id']} chal rahi hai. Khatam hote hi report bhejunga. ('status' se pooch sakte ho)"
+            length = f" Length: ~{settings['target_seconds'] // 60} min." if settings else ""
+            return f"✅ Shuru. Project '{name}' bana, job #{job['id']} chal rahi hai.{length} Khatam hote hi report bhejunga. ('status' se pooch sakte ho)"
         if act == "approve":
             s = hub.scripts.approve(int(data["script_id"]))
             hub.audit.record("script_approve", "ok", "script", s["id"], project=s["project_id"], via="manager")
@@ -164,7 +177,8 @@ class ManagerChat:
         jobs = self.hub.jobs.list_jobs(active_only=True, limit=5)
         if not jobs:
             last = self.hub.jobs.list_jobs(limit=1)
-            return "Abhi koi kaam nahi chal raha." + (f" Aakhri job #{last[0]['id']}: {last[0]['status']}." if last else "")
+            why = f"\n{last[0]['error_message'][:300]}" if last and last[0].get("error_message") else ""
+            return "Abhi koi kaam nahi chal raha." + (f" Aakhri job #{last[0]['id']}: {last[0]['status']}.{why}" if last else "")
         return "\n".join(f"⏳ job #{j['id']} {j.get('title') or j['job_type']} — {j['status']}"
                          f"{' · ' + j['stage'] if j.get('stage') else ''} ({int((j.get('progress') or 0) * 100)}%)" for j in jobs)
 
@@ -172,6 +186,6 @@ class ManagerChat:
         if not await self.hub.llm.available():
             return HELP
         try:
-            return (await self.hub.llm.chat(text, system=CHAT_SYSTEM, max_tokens=300, temperature=0.6)).strip()[:1500] or HELP
+            return (await self.hub.llm.chat(text, system=CHAT_SYSTEM, max_tokens=300, temperature=0.3)).strip()[:1500] or HELP
         except Exception:  # noqa: BLE001
             return HELP

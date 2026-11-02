@@ -4,7 +4,7 @@ import json
 
 from app.agents.accuracy import script_flags
 from app.agents.evidence import quote_in
-from app.agents.web import domain_of, html_to_text, safe_url, tier_of
+from app.agents.web import domain_of, html_to_text, parse_ddg, safe_url, tier_of
 from tests.helpers import TempDirCase, make_hub
 
 BERMUDA = ("The Bermuda Triangle is a loosely defined region in the western part of the North Atlantic Ocean. "
@@ -133,6 +133,11 @@ class AgentTests(TempDirCase):
         self.assertTrue(safe_url("https://en.wikipedia.org/wiki/X"))
         title, text = html_to_text("<html><head><title>T</title><script>bad()</script></head><body><nav>menu</nav><p>Hello  world</p></body></html>")
         self.assertEqual((title, text), ("T", "Hello world"))
+
+    async def test_parse_ddg_unwraps_redirects_and_blocks_private(self):
+        html = ('<a rel="nofollow" class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.nasa.gov%2Fx&amp;rut=abc">NASA <b>page</b></a>'
+                '<a class="result__a" href="http://127.0.0.1/secret">bad</a>')
+        self.assertEqual(parse_ddg(html), [{"url": "https://www.nasa.gov/x", "title": "NASA page"}])
 
     async def test_quote_must_really_be_on_the_page(self):
         self.assertTrue(quote_in("flight 19 was a group of five US Navy torpedo bombers", "Flight 19 was a group of five US Navy torpedo bombers!"))
