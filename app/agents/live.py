@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.container import Hub
 
-STEPS = [("research", "🔎 Research"), ("accuracy", "🧪 Accuracy"), ("script", "✍️ Script"), ("quality", "✅ Quality Checker")]
-ICON = {"pending": "⬜", "running": "🔄", "done": "✅", "failed": "❌"}
+STEPS = [("research", "🔎 Research"), ("accuracy", "🧪 Accuracy"), ("script", "✍️ Script"), ("quality", "🛡 Quality Checker")]
+ICON = {"pending": "⚪", "running": "🔄", "done": "✅", "failed": "❌"}
 
 
 class Live:

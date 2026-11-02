@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from app.container import Hub
 
 YES_RE = re.compile(r"^(ha+n?|haan ?ji|yes|y|ok|okay|theek|thik|kar do|kardo|karo|done)\b")
+FILLER = {"topic", "video", "naya", "naaya", "nayi", "ek", "chahiye", "banao", "bana", "do", "ka", "ki", "ke", "hai"}
 GREET = {"hello", "hi", "hii", "hey", "namaste", "hlo", "helo", "hello bhai", "hi bhai"}
 ACK = {"ok", "okay", "acha", "accha", "thik hai", "theek hai", "hmm", "thanks", "shukriya"}
 NO = {"nahi", "nahin", "no", "n", "mat", "ruko", "cancel", "rehne do"}
@@ -53,6 +54,11 @@ class ManagerChat:
             return HELP
         conv = self.hub.extra["conv"]
         pending = conv.get(uid)
+        if pending and pending["step"] == "manager_topic":
+            conv.clear(uid)
+            if _words(text) in NO:
+                return "Theek hai, kuch nahi kiya."
+            return await self._act(uid, chat_id, "new_video", text[:800], "", text, message_id)
         if pending and pending["step"] == "manager_confirm":
             return await self._confirm(uid, chat_id, pending["data"], text, message_id)
         intent, topic, instruction = self._rules(text)
@@ -64,9 +70,13 @@ class ManagerChat:
     @staticmethod
     def _rules(text: str) -> tuple[str, str, str]:
         w = _words(text)
-        m = re.match(r"^\s*(?:naya|new|nayi)\s+video\s*[:\-]?\s*(.+)$", text, re.I) or re.match(r"^\s*video\s+(?:banao|bana do|banana)\s*[:\-]?\s*(.+)$", text, re.I)
-        if m and len(m.group(1)) >= 5:
-            return "new_video", m.group(1).strip(), ""
+        m = re.match(r"^\s*(?:na+ya|na+yi|nya|new)\s+video\s*[:\-]?\s*(.*)$", text, re.I) or re.match(r"^\s*video\s+(?:banao|bana do|banana)\s*[:\-]?\s*(.*)$", text, re.I)
+        if m:
+            rest = m.group(1).strip()
+            if not rest or set(_words(rest).split()) <= FILLER:  # "naya video topic" has no topic yet
+                return "ask_topic", "", ""
+            if len(rest) >= 5:
+                return "new_video", rest, ""
         if w in ("team", "agents", "agent", "kaun kaun", "team dikhao"):
             return "team", "", ""
         if w in ("status", "progress", "kya hua", "kya chal raha hai", "kahan tak hua", "kaam kahan tak"):
@@ -104,6 +114,9 @@ class ManagerChat:
         hub, conv = self.hub, self.hub.extra["conv"]
         if intent == "help":
             return HELP
+        if intent == "ask_topic":
+            conv.set(uid, "manager_topic")
+            return "Kis topic par video banani hai? Seedha topic likho, jaise: Bharat ki khoj, ya Bermuda Triangle ka sach."
         if intent == "greet":
             return "Namaste! Main tumhara Manager hoon. Naya video chahiye to bolo: 'naya video: <topic>'. Baaki sab ke liye 'help'."
         if intent == "ack":
@@ -115,6 +128,8 @@ class ManagerChat:
         if intent == "show_script":
             s = self._latest()
             return ("📜 " + s["content"][:3500]) if s else "Abhi koi script nahi hai. 'naya video: <topic>' bolo."
+        if intent == "new_video" and set(_words(topic).split()) <= FILLER:
+            return await self._act(uid, chat_id, "ask_topic", "", "", text, message_id)
         if intent == "new_video":
             if not await hub.llm.available():
                 return "AI abhi band hai (Ollama chalu karo ya Settings me Cloud AI ON). Tab tak main video shuru nahi kar sakta."
@@ -144,6 +159,11 @@ class ManagerChat:
             conv.clear(uid)
             return "Theek hai, kuch nahi kiya."
         if not YES_RE.match(w):
+            if data.get("action") == "new_video" and len(text) >= 5:  # not yes/no: the owner is correcting the topic
+                topic = re.sub(r"^\s*topic\s*[:\-]\s*", "", text, flags=re.I)[:800]
+                conv.set(uid, "manager_confirm", action="new_video", topic=topic)
+                return f"Theek hai, topic badal diya: \"{topic}\"\nShuru karun? (haan / nahi)"
+            conv.set(uid, "manager_confirm", **data)
             return "Seedha bolo: haan ya nahi."
         conv.clear(uid)
         act = data["action"]

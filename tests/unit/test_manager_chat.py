@@ -52,7 +52,10 @@ class ManagerChatTests(TempDirCase):
     async def test_no_cancels_and_unclear_reply_asks_again(self):
         self.use()
         await self.say("naya video: Mariana Trench ka sach")
-        self.assertIn("haan ya nahi", await self.say("pata nahi kya bolun", mid=2))
+        r = await self.say("Bharat ki khoj", mid=2)  # not yes/no -> treated as the corrected topic, asks again
+        self.assertIn("Bharat ki khoj", r)
+        self.assertIn("Shuru karun", r)
+        self.assertEqual(self.hub.jobs.list_jobs(), [])
         self.assertIn("kuch nahi kiya", await self.say("nahi", mid=3))
         self.assertEqual(self.hub.jobs.list_jobs(), [])
         self.assertEqual(self.hub.projects.list_projects()[1], 0)
@@ -86,3 +89,13 @@ class ManagerChatTests(TempDirCase):
         await self.say("naya video: Bermuda Triangle ke raaz", mid=2)
         self.assertIn("10 min", await self.say("haa 10 mins ki video honi chahiye", mid=3))
         self.assertEqual(self.hub.projects.get_project(self.m.project_id)["settings"]["target_seconds"], 600)
+
+    async def test_naya_video_without_topic_asks_for_it(self):
+        self.use(smart=True)
+        self.assertIn("Kis topic", await self.say("naaya video topic"))
+        self.assertEqual(self.hub.jobs.list_jobs(), [])
+        r = await self.say("bharat ki khoj", mid=2)
+        self.assertIn("bharat ki khoj", r)
+        self.assertIn("Shuru karun", r)
+        await self.say("haa", mid=3)
+        self.assertEqual(self.hub.projects.get_project(self.m.project_id)["name"], "bharat ki khoj")
