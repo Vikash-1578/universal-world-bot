@@ -101,9 +101,7 @@ def load_settings(base_dir: Path | None = None, env: dict[str, str] | None = Non
     keys = parse_keys(keys_file.read_text(encoding="utf-8-sig")) if keys_file.exists() else []
     keys += parse_keys(env.get("AI_KEYS", "").replace(",", "\n"))
     # well-known env names also count as keys
-    for name, prov in (("GEMINI_API_KEY", "gemini"), ("GROQ_API_KEY", "groq"), ("ELEVENLABS_API_KEY", "elevenlabs"),
-                       ("PEXELS_API_KEY", "pexels"), ("PIXABAY_API_KEY", "pixabay"), ("CF_ACCOUNT_ID", "cf_account_id"),
-                       ("CF_API_TOKEN", "cf_api_token"), ("POLLINATIONS_KEY", "pollinations")):
+    for name, prov in ((('GEMINI_API_KEY', 'gemini'), ('GROQ_API_KEY', 'groq'), ('ELEVENLABS_API_KEY', 'elevenlabs'), ('PEXELS_API_KEY', 'pexels'), ('PIXABAY_API_KEY', 'pixabay'), ('CF_ACCOUNT_ID', 'cf_account_id'), ('CF_API_TOKEN', 'cf_api_token'), ('POLLINATIONS_KEY', 'pollinations'), ('OPEN_ROUTER_API_KEY', 'openrouter'), ('OPENAI_API_KEY', 'openai'), ('UNLIMITED_AI_API_KEY', 'unlimited'), ('AIML_API_KEY', 'aiml'), ('NVIDIA_API_KEY', 'nvidia'), ('MIND_STUDIO_AI_API_KEY', 'mindstudio'), ('ZERO_REQUEST_API_KEY', 'zerorequest'), ('HUGGING_FACE_API_KEY', 'huggingface'))):
         if env.get(name):
             keys.append((prov, env[name]))
     data_dir = Path(env.get("HUB_DATA_DIR") or hub.get("data_dir") or "data")
