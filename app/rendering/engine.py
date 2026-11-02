@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from moviepy import ImageClip, AudioFileClip, concatenate_videoclips
+from moviepy import ImageClip, AudioFileClip, concatenate_videoclips, CompositeAudioClip, ColorClip, TextClip
 
 log = logging.getLogger("app.rendering.engine")
 
