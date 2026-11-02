@@ -1,4 +1,14 @@
 
+async def job_run_agent_pipeline(hub, project_id, params):
+    """Runs the full multi-agent pipeline for a project."""
+    topic = params.get("topic", "General Facts")
+    try:
+        result = await hub.orchestrator.run_pipeline(project_id, {"topic": topic})
+        return result
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 async def job_render_video(hub, project_id, params):
     """Renders the final video for a project."""
     try:
