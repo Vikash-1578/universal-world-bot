@@ -14,7 +14,10 @@ from app.observability.log import get_logger
 
 log = get_logger(__name__)
 MAX_BYTES = 1_500_000
-UA = {"User-Agent": "UniversalWorldBot/1.0 (personal research tool)"}
+# Wikipedia asks for a descriptive agent; many other sites block anything that does not look like a browser.
+WIKI_UA = {"User-Agent": "UniversalWorldBot/1.0 (personal, non-commercial research tool; Python aiohttp)"}
+UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Accept-Language": "en-US,en;q=0.9"}
 A_SUFFIX = (".gov", ".edu", ".mil", ".gov.in", ".ac.in", ".gov.uk", ".ac.uk", ".nic.in")
 A_DOMAINS = {"nasa.gov", "britannica.com", "nature.com", "science.org", "who.int", "un.org", "unesco.org", "nih.gov", "si.edu",
              "nationalgeographic.com", "smithsonianmag.com", "esa.int", "loc.gov", "archive.org"}
@@ -120,6 +123,8 @@ class Web:
     def __init__(self, brave_key: str = "", timeout: float = 15.0) -> None:
         self.brave_key = brave_key
         self.timeout = aiohttp.ClientTimeout(total=timeout)
+        self._sem = asyncio.Semaphore(3)  # be polite: a burst of parallel requests gets rate-limited (HTTP 429)
+        self.errors: list[str] = []      # last fetch problems, e.g. "britannica.com: HTTP 403"
 
     async def _get_json(self, s: aiohttp.ClientSession, url: str, **kw) -> dict:
         async with s.get(url, **kw) as r:
@@ -129,7 +134,7 @@ class Web:
     async def search(self, query: str, limit: int = 4) -> list[dict]:
         """-> [{url, title}] from Wikipedia (+ Brave). Failures return what worked; never raises."""
         hits: list[dict] = []
-        async with aiohttp.ClientSession(timeout=self.timeout, headers=UA) as s:
+        async with aiohttp.ClientSession(timeout=self.timeout, headers=WIKI_UA) as s:
             try:
                 d = await self._get_json(s, "https://en.wikipedia.org/w/api.php", params={
                     "action": "query", "list": "search", "srsearch": query, "srlimit": limit, "format": "json"})
@@ -166,24 +171,41 @@ class Web:
         """-> {url, title, text} or None. Wikipedia via its API (clean text); other pages via HTML->text."""
         if not safe_url(url):
             return None
-        try:
-            async with aiohttp.ClientSession(timeout=self.timeout, headers=UA) as s:
-                if domain_of(url) == "wikipedia.org" and "/wiki/" in url:
-                    host = urlparse(url).hostname
-                    title = url.split("/wiki/", 1)[1]
-                    d = await self._get_json(s, f"https://{host}/w/api.php", params={
-                        "action": "query", "prop": "extracts", "explaintext": 1, "redirects": 1,
-                        "titles": title.replace("_", " "), "format": "json"})
-                    page = next(iter(d.get("query", {}).get("pages", {}).values()), {})
-                    text = page.get("extract") or ""
-                    return {"url": url, "title": page.get("title", ""), "text": text} if text else None
-                async with s.get(url, allow_redirects=True) as r:
-                    r.raise_for_status()
-                    if not safe_url(str(r.url)) or "html" not in r.headers.get("Content-Type", "html"):
-                        return None
-                    raw = await r.content.read(MAX_BYTES)
-                title, text = html_to_text(raw.decode(r.charset or "utf-8", errors="ignore"))
-                return {"url": url, "title": title, "text": text} if len(text) > 200 else None
-        except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError) as e:
-            log.warning("fetch_failed %s", type(e).__name__)
-            return None
+        async with self._sem:
+            for attempt in range(2):
+                try:
+                    return await self._fetch_once(url)
+                except aiohttp.ClientResponseError as e:
+                    if e.status == 429 and attempt == 0:
+                        await asyncio.sleep(2.5)  # rate limited: wait once, then retry
+                        continue
+                    self._note(url, f"HTTP {e.status}")
+                    return None
+                except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError) as e:
+                    self._note(url, type(e).__name__)
+                    return None
+        return None
+
+    def _note(self, url: str, why: str) -> None:
+        msg = f"{domain_of(url)}: {why}"
+        self.errors = (self.errors + [msg])[-20:]
+        log.warning("fetch_failed %s", msg)
+
+    async def _fetch_once(self, url: str) -> dict | None:
+        wiki = domain_of(url) == "wikipedia.org" and "/wiki/" in url
+        async with aiohttp.ClientSession(timeout=self.timeout, headers=WIKI_UA if wiki else UA) as s:
+            if wiki:
+                host = urlparse(url).hostname
+                title = unquote(url.split("/wiki/", 1)[1]).replace("_", " ")
+                d = await self._get_json(s, f"https://{host}/w/api.php", params={
+                    "action": "query", "prop": "extracts", "explaintext": 1, "redirects": 1, "titles": title, "format": "json"})
+                page = next(iter(d.get("query", {}).get("pages", {}).values()), {})
+                text = page.get("extract") or ""
+                return {"url": url, "title": page.get("title", ""), "text": text} if text else None
+            async with s.get(url, allow_redirects=True) as r:
+                r.raise_for_status()
+                if not safe_url(str(r.url)) or "html" not in r.headers.get("Content-Type", "html"):
+                    return None
+                raw = await r.content.read(MAX_BYTES)
+            title, text = html_to_text(raw.decode(r.charset or "utf-8", errors="ignore"))
+            return {"url": url, "title": title, "text": text} if len(text) > 200 else None
