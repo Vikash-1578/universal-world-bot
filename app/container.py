@@ -25,6 +25,7 @@ class Hub:
     jobs: JobService
     llm: Any = None
     scripts: Any = None
+    manager: Any = None
     extra: dict[str, Any] = field(default_factory=dict)
     status: dict[str, str] = field(default_factory=dict)
     bot: Any = None
@@ -78,5 +79,8 @@ def build_hub(settings: Settings) -> Hub:
     from app.telegram.conversations.state import Conversations
 
     hub.extra["conv"] = Conversations(db)
+    from app.agents.chat import ManagerChat
+
+    hub.manager = ManagerChat(hub)
     register_all(hub)
     return hub

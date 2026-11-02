@@ -61,6 +61,8 @@ Character/environment library, storyboards, 2D animation, Blender 3D and ComfyUI
 | Fact-Check agent: second-pass verdicts, weak/disputed claims dropped, unbacked numbers flagged | 🟡 | safety net, not proof |
 | Quality Checker (deterministic, offline) | ✅ | |
 | Never approves a script automatically | ✅ | |
+| Manager chat: plain Hinglish text → intents (new video, status, show script, approve, revise, team); asks haan/nahi before anything runs | ✅ sandbox / ⬜ laptop | tests/unit/test_manager_chat.py |
+| Team registry (15 roles, honest status) | ✅ | app/agents/team.py |
 | Telegram button 🚀 Auto video script (agents) | ✅ sandbox / ⬜ laptop | |
 
 ## Next — remaining agents

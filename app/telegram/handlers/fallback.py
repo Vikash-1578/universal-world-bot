@@ -39,6 +39,14 @@ async def on_message(message: Message, hub) -> None:
         except Exception as e:  # noqa: BLE001
             await fail(message, e)
             return
+    if message.text:  # no guided step: this is a chat with the Manager
+        try:
+            reply = await hub.manager.handle(uid, message.chat.id, message.text, message_id=message.message_id)
+        except Exception as e:  # noqa: BLE001
+            await fail(message, e)
+            return
+        await message.answer(reply[:4000], parse_mode=None)
+        return
     await message.answer("Menu se kaam chuno 👇", reply_markup=main_menu(), parse_mode=None)
 
 

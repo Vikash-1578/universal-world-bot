@@ -45,3 +45,7 @@ class StudioFlowTests(TempDirCase):
         job = self.hub.jobs.list_jobs()[0]
         self.assertEqual((job["job_type"], job["status"]), ("video_pipeline", "completed"), job["error_message"])
         self.assertEqual(self.hub.scripts.latest(pid)["approval_status"], "draft")  # never auto-approved
+
+    async def test_plain_text_goes_to_manager(self):
+        await feed(self.bot, self.dp, msg_update("team"))
+        self.assertIn("Meri team", texts(self.sess)[-1])
