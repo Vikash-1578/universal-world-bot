@@ -8,7 +8,6 @@ from typing import Any
 from app.core.config import Settings
 from app.core.events import EventBus
 from app.core.security import Approvals
-from app.core.orchestrator import Orchestrator
 from app.observability.audit import Audit
 from app.projects.service import ProjectService
 from app.scheduler.service import JobService
@@ -90,7 +89,6 @@ from app.rendering.engine import RenderEngine
     cf = CloudflareImages(settings.key("cf_account_id", "cloudflare_account_id"), settings.key("cf_api_token", "cloudflare_api_token", "cloudflare"))
     hub.imagegen = ImageRouter(comfy, cf, lambda: hub.cloud_enabled, lambda: hub.db.get_setting("ai_order", "local") == "cloud")
     hub.tts = TTS()
-    hub.orchestrator = Orchestrator(hub)
     hub.renderer = RenderEngine(settings.data_dir)
     from app.pipelines import register_all  # job handlers for each milestone
 
