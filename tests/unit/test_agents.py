@@ -7,16 +7,26 @@ from app.agents.evidence import quote_in
 from app.agents.web import clean_links, domain_of, html_to_text, parse_ddg, safe_url, tier_of
 from tests.helpers import TempDirCase, make_hub
 
-BERMUDA = ("The Bermuda Triangle is a loosely defined region in the western part of the North Atlantic Ocean. "
-           "Flight 19 was a group of five US Navy torpedo bombers that disappeared on 5 December 1945 during a training flight. "
-           "The Coast Guard says it does not recognize the Bermuda Triangle as an official name. "
-           "Lloyd's of London does not charge higher insurance rates for ships crossing the region. "
-           "The area is often said to cover about 500,000 square miles, although estimates vary widely. ") * 2
+S_REGION = "The Bermuda Triangle is a loosely defined region in the western part of the North Atlantic Ocean."
+S_FLIGHT = "Flight 19 was a group of five US Navy torpedo bombers that disappeared on 5 December 1945 during a training flight."
+S_GUARD = "The Coast Guard says it does not recognize the Bermuda Triangle as an official name."
+S_LLOYD = "Lloyd's of London does not charge higher insurance rates for ships crossing the region."
+S_AREA = "The area is often said to cover about 500,000 square miles, although estimates vary widely."
+FILLER = " ".join(f"Filler sentence number {i} about nothing in particular, written only to make this page long enough." for i in range(1, 9))
+BERMUDA = " ".join([S_REGION, S_FLIGHT, S_GUARD, S_LLOYD, S_AREA]) + " " + FILLER.replace("nothing in particular", "ships and planes")
+BLOG_S = "A blog about the Bermuda Triangle says aliens abduct ships every single year without exception, sources unknown."
 PAGES = {
     "https://en.wikipedia.org/wiki/Bermuda_Triangle": ("Bermuda Triangle - Wikipedia", BERMUDA),
     "https://www.britannica.com/place/Bermuda-Triangle": ("Bermuda Triangle | Britannica", BERMUDA),
-    "https://example-blog.com/bermuda": ("Blog", "A blog says aliens abduct ships in the triangle every single year without exception, sources unknown. " * 12),
+    "https://example-blog.com/bermuda": ("Blog", BLOG_S + " " + FILLER),
+    "https://www.unrelated-shop.com/cats": ("Cats", " ".join(f"Cats are lovely pets and sleep sixteen hours a day, said veterinarian number {i} yesterday." for i in range(20))),
 }
+CLAIMS = {S_REGION: "The Bermuda Triangle is a loosely defined region of the North Atlantic",
+          S_FLIGHT: "Flight 19 disappeared on 5 December 1945",
+          S_GUARD: "The Coast Guard does not recognize the Bermuda Triangle as an official name",
+          S_LLOYD: "Lloyd's of London charges no extra insurance for the region",
+          S_AREA: "The area is often said to cover about 500,000 square miles",
+          BLOG_S: "Aliens abduct ships in the Bermuda Triangle every year"}
 GOOD = """Title: Bermuda Triangle ka raaz
 [Scene 1: Hook]
 (show: stormy ocean)
@@ -50,17 +60,25 @@ class FakeWeb:
         return {"url": url, "title": t[0], "text": t[1]} if t else None
 
 
-QUOTES = {
-    "loosely defined region": "The Bermuda Triangle is a loosely defined region in the western part of the North Atlantic Ocean.",
-    "Flight 19": "Flight 19 was a group of five US Navy torpedo bombers that disappeared on 5 December 1945 during a training flight.",
-    "Coast Guard": "The Coast Guard says it does not recognize the Bermuda Triangle as an official name.",
-    "Lloyd": "Lloyd's of London does not charge higher insurance rates for ships crossing the region.",
-    "square miles": "The area is often said to cover about 500,000 square miles, although estimates vary widely.",
-}
+class FakeBot:
+    """Telegram test double: records the live progress message and its edits."""
+
+    def __init__(self):
+        self.sent, self.edits = [], []
+
+    async def send_message(self, chat_id, text, parse_mode=None):
+        self.sent.append(text)
+        return type("M", (), {"message_id": 7})()
+
+    async def edit_message_text(self, text, chat_id=None, message_id=None, parse_mode=None):
+        self.edits.append(text)
+
+    async def send_document(self, *a, **k):
+        pass
 
 
 class SmartLLM:
-    """Answers by prompt type, like a model that is honest about what is on the page."""
+    """Behaves like a sensible model: picks sentences, and judges pairs honestly."""
     ok = True
     last_provider = "fake:model"
 
@@ -78,47 +96,21 @@ class SmartLLM:
     async def chat_json(self, prompt, **kw):
         self.prompts.append(prompt)
         if "search queries" in prompt:
-            return {"queries": ["bermuda triangle"]}
-        text = prompt.split("TEXT:", 1)[1]
-        if "CLAIMS:" in prompt:  # accuracy cross-check
-            claims = prompt.split("CLAIMS:", 1)[1].split("TEXT:", 1)[0]
+            return {"queries": ["bermuda triangle", "bermuda triangle flight 19"]}
+        if "PAIRS:" in prompt:
             res = []
-            for line in claims.strip().splitlines():
-                n, claim = line.split(". ", 1)
-                for key, quote in QUOTES.items():
-                    if key in claim and quote in text:
-                        res.append({"n": int(n), "verdict": "supports", "quote": quote})
-                if "aliens" in claim:  # model claims support but invents a quote -> must be rejected by code
-                    res.append({"n": int(n), "verdict": "supports", "quote": "Scientists confirmed that aliens abduct ships every year."})
+            for line in prompt.split("PAIRS:", 1)[1].split("Return ONLY")[0].strip().splitlines():
+                n, rest = line.split(". ", 1)
+                claim, sent = rest.replace("CLAIM: ", "", 1).split(" || SENTENCE: ")
+                same = CLAIMS.get(sent.strip()) == claim.strip()
+                res.append({"n": int(n), "verdict": "supports" if same else "unrelated"})
             return {"results": res}
-        if "aliens abduct" in text:  # extraction from the blog
-            return {"claims": [{"claim": "Aliens abduct ships in the triangle every year", "quote": "A blog says aliens abduct ships in the triangle every single year without exception, sources unknown."}]}
-        claims = [
-            {"claim": "Bermuda Triangle is a loosely defined region of the North Atlantic", "quote": "The Bermuda Triangle is a loosely defined region in the western part of the North Atlantic Ocean."},
-            {"claim": "Flight 19 disappeared on 5 December 1945", "quote": "Flight 19 was a group of five US Navy torpedo bombers that disappeared on 5 December 1945 during a training flight."},
-            {"claim": "The Coast Guard does not recognize the Bermuda Triangle as an official name", "quote": "The Coast Guard says it does not recognize the Bermuda Triangle as an official name."},
-            {"claim": "Lloyd's of London charges no extra insurance for the region", "quote": "Lloyd's of London does not charge higher insurance rates for ships crossing the region."},
-            {"claim": "The area is often said to cover about 500,000 square miles", "quote": QUOTES["square miles"]},
-            {"claim": "Made up claim", "quote": "This sentence is not on the page at all, the model invented it."},
-        ]
-        return {"claims": claims}
-
-
-class FakeBot:
-    """Telegram test double: records the live progress message and its edits."""
-
-    def __init__(self):
-        self.sent, self.edits = [], []
-
-    async def send_message(self, chat_id, text, parse_mode=None):
-        self.sent.append(text)
-        return type("M", (), {"message_id": 7})()
-
-    async def edit_message_text(self, text, chat_id=None, message_id=None, parse_mode=None):
-        self.edits.append(text)
-
-    async def send_document(self, *a, **k):
-        pass
+        res = [{"n": 99, "claim": "Out of range pick must be ignored"}]
+        for line in prompt.split("SENTENCES from a web page:", 1)[1].split("Pick up to")[0].strip().splitlines():
+            n, sent = line.split(". ", 1)
+            if sent.strip() in CLAIMS:
+                res.append({"n": int(n), "claim": CLAIMS[sent.strip()]})
+        return {"claims": res}
 
 
 class AgentTests(TempDirCase):
@@ -163,10 +155,28 @@ class AgentTests(TempDirCase):
         self.assertEqual(clean_links(urls), ["https://www.nasa.gov/a", "https://www.bbc.com/news/1"])
         self.assertEqual(tier_of("archive.org"), "C")  # a web.archive.org snapshot must never count as a top source
 
-    async def test_quote_must_really_be_on_the_page(self):
-        self.assertTrue(quote_in("flight 19 was a group of five US Navy torpedo bombers", "Flight 19 was a group of five US Navy torpedo bombers!"))
+    async def test_quote_and_sentence_tools(self):
+        from app.agents.evidence import best_sentence, key_terms, relevant, split_sentences
+        self.assertTrue(quote_in("flight 19 was a group of five US Navy torpedo bombers", S_FLIGHT))
         self.assertFalse(quote_in("Scientists confirmed that aliens abduct ships", BERMUDA))
-        self.assertFalse(quote_in("too short", "too short"))
+        sents = split_sentences(BERMUDA)
+        self.assertEqual(best_sentence("Flight 19 disappeared on 5 December 1945", sents), S_FLIGHT)
+        self.assertIsNone(best_sentence("Napoleon lost at Waterloo in 1815", sents))
+        self.assertTrue(relevant(BERMUDA, key_terms("bermuda triangle mysteries")))
+        self.assertFalse(relevant(PAGES["https://www.unrelated-shop.com/cats"][1], key_terms("bermuda triangle")))
+
+    async def test_two_blogs_agreeing_is_not_proof(self):
+        from app.agents.accuracy import AccuracyAgent
+        from app.agents.evidence import Claim, EvidenceStore
+        store = EvidenceStore(self.tmp / "ev")
+        a, b = store.add("https://one-blog.com/x", "a", "x"), store.add("https://two-blog.net/y", "b", "y")
+        c = Claim("c1", "something", a.id, {a.id: "q" * 30, b.id: "q" * 30})
+        AccuracyAgent.judge(store, c)
+        self.assertEqual(c.status, "pending")  # two tier-C sites: not enough
+        d = store.add("https://www.bbc.com/z", "c", "z")
+        c.support[d.id] = "q" * 30
+        AccuracyAgent.judge(store, c)
+        self.assertEqual(c.status, "accepted")
 
     async def test_script_flags_unbacked_numbers_only_in_narration(self):
         text = "Title: T\n[Scene 1: A]\n(show: 1945 newsreel)\nNarrator: Flight 19 vanished in 1945 with 14 men.\n"
@@ -185,7 +195,7 @@ class AgentTests(TempDirCase):
         proof = (folder / "proof.md").read_text(encoding="utf-8")
         self.assertIn("Flight 19", proof)
         self.assertIn("britannica.com", proof)  # two independent domains for the same claim
-        self.assertNotIn("Made up claim", proof.split("# Dropped")[0])  # invented quote never became a claim
+        self.assertNotIn("Out of range", proof)  # a model pick that is not a real sentence is ignored
         self.assertNotIn("aliens", proof.split("# Dropped")[0])  # blog claim had a fake proof quote -> dropped
         script_prompt = [p for p in llm.prompts if "Use ONLY these checked facts" in p][0]
         self.assertIn("Flight 19 disappeared", script_prompt)

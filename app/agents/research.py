@@ -5,14 +5,15 @@ The AI proposes queries and picks claims, but a claim is kept only if its quote 
 from __future__ import annotations
 
 import asyncio
+import re
 from dataclasses import asdict
 
 from app.agents.base import Agent, AgentResult, Brief, clip
-from app.agents.evidence import Claim, EvidenceStore, Source, norm, quote_in
+from app.agents.evidence import Claim, EvidenceStore, Source, key_terms, norm, quote_in, relevant, split_sentences
 from app.agents.web import domain_of
 from app.core.errors import InvalidInput
 
-MAX_SOURCES = 8
+MAX_SOURCES = 10
 MIN_PAGE = 800  # shorter pages (stubs, catalogue records) hold nothing worth quoting
 WIKI_SKIP_AFTER = 2  # at most this many Wikipedia pages: more of the same site adds no independent proof
 MAX_CLAIMS = 30
@@ -21,16 +22,22 @@ Write 3-5 web search queries that would find reliable pages (encyclopedias, univ
 Return ONLY JSON: {{"queries": ["..."]}}"""
 EXTRACT_PROMPT = """TOPIC: {topic}
 
-TEXT:
-{text}
+SENTENCES from a web page:
+{sentences}
 
-List up to 6 clear, specific factual claims from TEXT that matter for a video on the topic (names, dates, numbers, causes).
-For each claim give "quote": ONE sentence copied EXACTLY, character for character, from TEXT (max 250 characters).
-Return ONLY JSON: {{"claims": [{{"claim": "short statement", "quote": "exact sentence from TEXT"}}]}}"""
+Pick up to 6 sentences that state clear, specific, interesting facts about the topic (names, dates, numbers, causes).
+Skip opinions, questions and navigation text. For each picked sentence write "claim": the same fact as one short standalone
+sentence (replace words like it/he/they with the real name). Return ONLY JSON: {{"claims": [{{"n": 3, "claim": "..."}}]}}"""
 
 
-def passage(text: str, limit: int = 4500) -> str:
-    return text[:limit]
+def candidates(sentences: list[str], terms: list[str], n: int = 30) -> list[str]:
+    """Most topic-related sentences (word overlap + numbers), kept in page order."""
+    def score(s: str) -> float:
+        w = set(norm(s).split())
+        return sum(1 for t in terms if t in w) * 2 + (1 if re.search(r"\d", s) else 0)
+
+    top = sorted(range(len(sentences)), key=lambda i: -score(sentences[i]))[:n]
+    return [sentences[i] for i in sorted(top)]
 
 
 class ResearchAgent(Agent):
@@ -45,7 +52,8 @@ class ResearchAgent(Agent):
             qs = []
         return (qs[:5] or []) + ([brief.topic[:120]] if brief.topic[:120] not in qs else [])
 
-    async def gather(self, queries: list[str], store: EvidenceStore, limit: int, skip_domains: set[str] | None = None) -> list[Source]:
+    async def gather(self, queries: list[str], store: EvidenceStore, limit: int, skip_domains: set[str] | None = None,
+                     terms: list[str] | None = None, min_frac: float = 0.6) -> list[Source]:
         """Search + fetch up to `limit` NEW pages. One page per URL; prefers different domains."""
         hits: list[dict] = []
         for res in await asyncio.gather(*(self.hub.web.search(q) for q in queries)):
@@ -78,17 +86,18 @@ class ResearchAgent(Agent):
             batch = cands[i:i + 6]
             pages = await asyncio.gather(*(self.hub.web.fetch(h["url"]) for h in batch))
             for h, p in zip(batch, pages):
-                if p and len(p["text"]) >= MIN_PAGE and len(out) < limit:
+                if p and len(p["text"]) >= MIN_PAGE and len(out) < limit and relevant(p["text"], terms or [], min_frac):
                     out.append(store.add(p["url"], p["title"] or h["title"], p["text"]))
         return out
 
     async def run(self, brief: Brief, store: EvidenceStore) -> AgentResult:
         await self.say("search queries bana raha hoon")
         queries = await self._queries(brief)
+        terms = key_terms(queries[0])
         await self.say("web se pages dhundh aur khol raha hoon")
-        sources = await self.gather(queries, store, MAX_SOURCES)
+        sources = await self.gather(queries, store, MAX_SOURCES, terms=terms)
         if not sources:
-            raise InvalidInput("Internet/search se koi source nahi mila. Internet check karo (Wikipedia khulta hai?) "
+            raise InvalidInput("Internet/search se koi kaam ka source nahi mila. Internet check karo (Wikipedia khulta hai?) "
                                "ya keys.txt me `brave:<key>` daalo.")
         claims: list[Claim] = []
         seen: set[str] = set()
@@ -96,16 +105,20 @@ class ResearchAgent(Agent):
             await self.say(f"{len(sources)} pages mile · claims nikaal raha hoon ({i}/{len(sources)})")
             if len(claims) >= MAX_CLAIMS:
                 break
+            cand = candidates(split_sentences(store.text(src.id)), terms)
+            if not cand:
+                continue
+            prompt = EXTRACT_PROMPT.format(topic=brief.topic, sentences="\n".join(f"{n}. {t}" for n, t in enumerate(cand, 1)))
             try:
-                raw = await self.hub.llm.chat_json(EXTRACT_PROMPT.format(topic=brief.topic, text=passage(store.text(src.id))), max_tokens=1500)
+                raw = await self.hub.llm.chat_json(prompt, max_tokens=1500)
             except Exception:  # noqa: BLE001 - one bad page must not stop the research
                 continue
             for c in (raw.get("claims") if isinstance(raw, dict) else None) or []:
-                if not isinstance(c, dict):
+                if not isinstance(c, dict) or not str(c.get("n", "")).isdigit() or not 1 <= int(c["n"]) <= len(cand):
                     continue
-                text, quote = clip(c.get("claim"), 300), clip(c.get("quote"), 400)
+                text, quote = clip(c.get("claim"), 300), cand[int(c["n"]) - 1]  # the quote IS a sentence of the page
                 if len(text) < 10 or norm(text) in seen or not quote_in(quote, store.text(src.id)):
-                    continue  # quote not really on the page -> no proof -> discard
+                    continue
                 seen.add(norm(text))
                 claims.append(Claim(f"c{len(claims) + 1}", text, src.id, {src.id: quote}))
         res = AgentResult(self.name, ok=len(claims) >= 3, provider=self.hub.llm.last_provider,

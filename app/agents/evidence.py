@@ -22,6 +22,51 @@ def quote_in(quote: str, text: str) -> bool:
     return 20 <= len(q) <= 400 and q in norm(text)
 
 
+_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9\"“(])")
+STOP = {"about", "what", "with", "from", "that", "this", "their", "there", "where", "which", "when", "have", "were", "real",
+        "truth", "story", "mystery", "mysteries", "topic", "video", "facts", "behind", "hidden"}
+
+
+def split_sentences(text: str, lo: int = 40, hi: int = 400) -> list[str]:
+    """Page text -> unique, readable sentences (these are the ONLY things ever used as quotes)."""
+    out, seen = [], set()
+    for para in re.split(r"\n+", text or ""):
+        for sent in _SPLIT.split(para.strip()):
+            sent = " ".join(sent.split())
+            k = norm(sent)
+            if lo <= len(sent) <= hi and k not in seen:
+                seen.add(k)
+                out.append(sent)
+    return out
+
+
+def key_terms(text: str) -> list[str]:
+    ws = [w for w in norm(text).split() if (len(w) > 3 or w.isdigit()) and w not in STOP]
+    return list(dict.fromkeys(ws))[:8]
+
+
+def relevant(text: str, terms: list[str], min_frac: float = 0.6) -> bool:
+    """Does the page really talk about the topic? (5-letter prefixes, so 'mysteries' matches 'mystery')."""
+    if not terms:
+        return True
+    pre = {w[:5] for w in norm(text).split()}
+    return sum(1 for t in terms if t[:5] in pre) / len(terms) >= min_frac
+
+
+def best_sentence(claim: str, sentences: list[str]) -> str | None:
+    """Deterministic retrieval: the sentence that shares the most key words (and numbers) with the claim."""
+    ct = set(key_terms(claim)) | {w for w in norm(claim).split() if w.isdigit()}
+    if len(ct) < 2:
+        return None
+    best, score = None, 0.0
+    for s in sentences:
+        st = set(norm(s).split())
+        hit = sum(1 for t in ct if t in st)
+        if hit >= 2 and hit / len(ct) > score:
+            best, score = s, hit / len(ct)
+    return best if score >= 0.45 else None
+
+
 @dataclass
 class Source:
     id: str

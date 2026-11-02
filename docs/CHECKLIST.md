@@ -57,8 +57,8 @@ Character/environment library, storyboards, 2D animation, Blender 3D and ComfyUI
 | Item | Status | Notes |
 |---|---|---|
 | Manager job `video_pipeline`: research → fact-check → script → quality (max 2 auto revisions), resumable stages | ✅ sandbox / ⬜ laptop | tests/unit/test_agents.py (fake AI) |
-| Research agent: Wikipedia (+Brave if `brave:` key) → pages → claims; each claim kept only with a verbatim quote found on the page | ✅ sandbox / ⬜ real internet | tests/unit/test_agents.py (fake web + fake AI) |
-| Accuracy agent: ≥2 independent domains (or 1 gov/edu source) with verified quotes, no contradiction; unproven → 2 rounds of targeted re-research → dropped; proof.md written & sent | ✅ sandbox / ⬜ real internet | not a guarantee of truth — owner still approves |
+| Research agent: Wikipedia + pages it cites (+Brave/DuckDuckGo) → relevance filter → model PICKS sentences; the proof quote is always a real sentence of the page | ✅ sandbox / 🟡 real internet | tests/unit/test_agents.py (fake web + fake AI) |
+| Accuracy agent: code finds the closest sentence on every other page, model only judges same-fact/conflict; accepted = ≥2 independent domains incl. ≥1 tier A/B (or 1 gov/edu), no contradiction; unproven → 2 rounds re-research → dropped; proof.md sent | ✅ sandbox / 🟡 real internet | not a guarantee of truth — owner still approves |
 | Quality Checker (deterministic, offline) | ✅ | |
 | Never approves a script automatically | ✅ | |
 | Manager chat: plain Hinglish text → intents (new video, status, show script, approve, revise, team); asks haan/nahi before anything runs | ✅ sandbox / ⬜ laptop | tests/unit/test_manager_chat.py |

@@ -25,7 +25,8 @@ B_DOMAINS = {"wikipedia.org", "bbc.com", "bbc.co.uk", "reuters.com", "apnews.com
              "livescience.com", "scientificamerican.com", "nytimes.com", "theguardian.com", "thehindu.com"}
 SKIP_DOMAINS = {"wikipedia.org", "wikimedia.org", "wikidata.org", "mediawiki.org", "wikisource.org", "wikibooks.org", "wikiquote.org",
                 "google.com", "amazon.com", "youtube.com", "facebook.com", "twitter.com", "x.com", "doi.org", "jstor.org",
-                "worldcat.org", "goodreads.com", "imdb.com", "archive.org"}
+                "worldcat.org", "goodreads.com", "imdb.com", "archive.org", "blogspot.com", "wordpress.com", "deepl.com", "fandom.com",
+                "reddit.com", "quora.com", "pinterest.com", "medium.com", "tumblr.com", "wikia.com", "translate.google.com"}
 CATALOG_PARTS = ("/viaf/", "/gnd/", "/authorities/", "ark:/", "ccl_term=", "/authority/", "id.loc.gov")  # library records, not articles
 _WAYBACK = re.compile(r"^https?://web\.archive\.org/web/\d+[a-z_]*/(https?://.+)$", re.I)
 TWO_LEVEL = ("co.uk", "gov.uk", "ac.uk", "gov.in", "ac.in", "nic.in", "com.au", "co.in", "co.jp")
