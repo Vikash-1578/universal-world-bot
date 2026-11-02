@@ -1,3 +1,13 @@
+
+async def job_render_video(hub, project_id, params):
+    """Renders the final video for a project."""
+    try:
+        output_path = await hub.renderer.render_project(hub, project_id)
+        return {"status": "success", "path": str(output_path)}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 """Registers job handlers. Each milestone adds its own; unregistered job types simply stay queued."""
 from __future__ import annotations
 
