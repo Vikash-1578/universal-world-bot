@@ -1,7 +1,7 @@
 """Script -> send -> approve, through Telegram buttons (fake Telegram session)."""
 from app.telegram.callbacks.codec import make
 from tests.helpers import TempDirCase, buttons, cb_update, feed, make_bot_and_dp, make_hub, msg_update, texts
-from tests.unit.test_agents import GOOD, RESEARCH, VERDICTS
+from tests.unit.test_agents import FakeWeb, SmartLLM
 from tests.unit.test_scripts import SCRIPT, FakeLLM
 
 
@@ -38,7 +38,8 @@ class StudioFlowTests(TempDirCase):
 
     async def test_auto_pipeline_button(self):
         pid = self.pid
-        self.hub.llm = self.hub.scripts.llm = FakeLLM([RESEARCH, VERDICTS, GOOD])
+        self.hub.llm = self.hub.scripts.llm = SmartLLM()
+        self.hub.web = FakeWeb()
         await feed(self.bot, self.dp, cb_update(make("ss", "auto", pid)))
         await feed(self.bot, self.dp, msg_update("Bermuda Triangle ke raaz"))
         await self.hub.jobs.wait_idle(timeout=20)

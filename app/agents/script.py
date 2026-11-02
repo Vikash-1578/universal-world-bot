@@ -5,7 +5,7 @@ from app.agents.base import Agent, AgentResult, Brief
 
 
 def facts_to_notes(kept: list[dict]) -> str:
-    return "\n".join(f"- {p['point']}" + (" [disputed]" if p.get("disputed") else "") for p in kept)
+    return "\n".join(f"- {c['text']}" for c in kept)
 
 
 class ScriptAgent(Agent):

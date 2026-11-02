@@ -26,6 +26,7 @@ class Hub:
     llm: Any = None
     scripts: Any = None
     manager: Any = None
+    web: Any = None
     extra: dict[str, Any] = field(default_factory=dict)
     status: dict[str, str] = field(default_factory=dict)
     bot: Any = None
@@ -80,7 +81,9 @@ def build_hub(settings: Settings) -> Hub:
 
     hub.extra["conv"] = Conversations(db)
     from app.agents.chat import ManagerChat
+    from app.agents.web import Web
 
+    hub.web = Web(settings.key("brave"))
     hub.manager = ManagerChat(hub)
     register_all(hub)
     return hub

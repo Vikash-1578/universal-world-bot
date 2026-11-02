@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 
 from app.agents.base import Agent, AgentResult, Brief
-from app.agents.factcheck import script_flags
+from app.agents.accuracy import script_flags
 from app.scripts import parser
 
 ABSOLUTES = re.compile(r"\b(100% (?:proven|true|certain)|scientists (?:all )?agree|no one can explain|everyone knows|guaranteed)\b", re.I)

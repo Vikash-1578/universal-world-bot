@@ -3,7 +3,8 @@ import json
 
 from app.agents.team import TEAM, team_text
 from tests.helpers import TempDirCase, make_hub
-from tests.unit.test_agents import GOOD, RESEARCH, VERDICTS
+from tests.unit.test_agents import FakeWeb, SmartLLM
+from tests.unit.test_agents import FakeWeb, SmartLLM
 from tests.unit.test_scripts import FakeLLM
 
 UID, CHAT = 1001, 1001
@@ -20,7 +21,11 @@ class ManagerChatTests(TempDirCase):
         self.hub.db.close()
         await super().asyncTearDown()
 
-    def use(self, replies=None, ok=True):
+    def use(self, replies=None, ok=True, smart=False):
+        if smart:
+            self.hub.llm = self.hub.scripts.llm = SmartLLM()
+            self.hub.web = FakeWeb()
+            return self.hub.llm
         self.hub.llm = self.hub.scripts.llm = FakeLLM(replies, ok=ok)
         return self.hub.llm
 
@@ -33,7 +38,7 @@ class ManagerChatTests(TempDirCase):
         self.assertIn("Manager", await self.say("team"))
 
     async def test_new_video_needs_confirmation_then_runs(self):
-        self.use([RESEARCH, VERDICTS, GOOD])
+        self.use(smart=True)
         r = await self.say("naya video: Bermuda Triangle ke raaz")
         self.assertIn("Shuru karun", r)
         self.assertEqual(self.hub.jobs.list_jobs(), [])  # nothing runs before haan
@@ -53,7 +58,7 @@ class ManagerChatTests(TempDirCase):
         self.assertEqual(self.hub.projects.list_projects()[1], 0)
 
     async def test_approve_only_after_haan(self):
-        self.use([RESEARCH, VERDICTS, GOOD])
+        self.use(smart=True)
         await self.say("naya video: Bermuda Triangle ke raaz")
         await self.say("haan", mid=2)
         await self.hub.jobs.wait_idle(timeout=20)

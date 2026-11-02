@@ -4,8 +4,8 @@ from __future__ import annotations
 
 TEAM: list[dict] = [
     {"key": "manager", "name": "Manager", "role": "Owner se baat, baaki agents ko control", "status": "building"},
-    {"key": "research", "name": "Research", "role": "Web se research + har claim ka proof (source link)", "status": "basic"},
-    {"key": "accuracy", "name": "Accuracy", "role": "Proof check; kamzor claim wapas research ko", "status": "basic"},
+    {"key": "research", "name": "Research", "role": "Web se research + har claim ka proof (link + quote)", "status": "basic"},
+    {"key": "accuracy", "name": "Accuracy", "role": "Proof check; kamzor claim wapas research ko, 2+ sites ya gov/edu", "status": "basic"},
     {"key": "script", "name": "Script", "role": "Hook + Problem + Solution + Result + CTA", "status": "basic"},
     {"key": "virality", "name": "Script Virality Checker", "role": "Script ka viral-potential score; kamzor ho to rewrite", "status": "planned"},
     {"key": "voice", "name": "Voice", "role": "Edge-TTS professional voice (pitch/speed settings)", "status": "planned"},

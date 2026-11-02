@@ -1,11 +1,12 @@
-"""Manager agent: runs research -> fact-check -> script -> quality (with at most 2 automatic revisions) as stages
+"""Manager agent: runs research -> accuracy -> script -> quality (with at most 2 automatic revisions) as stages
 of ONE resumable job. It never approves a script — the owner always does that in Script Studio."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 from app.agents.base import Brief
-from app.agents.factcheck import FactCheckAgent
+from app.agents.accuracy import AccuracyAgent
+from app.agents.evidence import EvidenceStore
 from app.agents.quality import QualityAgent
 from app.agents.research import ResearchAgent
 from app.agents.script import ScriptAgent, facts_to_notes
@@ -21,7 +22,7 @@ MAX_REVISIONS = 2
 def format_report(topic: str, version: int, q: dict, kept: int, dropped: int, revisions: int, provider: str) -> str:
     icon = "✅" if q["ok"] else "⚠️"
     lines = [f"{icon} Auto script ready — v{version}", f"Topic: {topic[:100]}",
-             f"Facts: {kept} rakhe, {dropped} hataye (model-memory based, sources se verify nahi)",
+             f"Proof ke saath {kept} claims pass, {dropped} hataye (proof.md me links + quotes)",
              f"Quality score: {q['data']['score']}/100 · ~{q['data']['seconds']:.0f}s · {q['data']['scenes']} scenes"]
     if revisions:
         lines.append(f"Auto-badlaav: {revisions}")
@@ -38,25 +39,27 @@ def register(hub: "Hub") -> None:
         brief = Brief.from_project(hub, pid, ctx.inputs["topic"])
         if len(brief.topic) < 5:
             raise InvalidInput("Topic thoda aur likho.")
-        research, facts, scripts, quality = ResearchAgent(hub), FactCheckAgent(hub), ScriptAgent(hub), QualityAgent(hub)
+        research, scripts, quality = ResearchAgent(hub), ScriptAgent(hub), QualityAgent(hub)
+        accuracy = AccuracyAgent(hub, research)
+        store = EvidenceStore(hub.projects.folder(pid, "agents", "sources"))
 
         async with ctx.stage("research", {"topic": brief.topic}) as st:
             if not st.skipped:
-                await ctx.progress(0.1, "Research agent")
-                r = await research.run(brief)
+                await ctx.progress(0.1, "Research agent (web)")
+                r = await research.run(brief, store)
                 if not r.ok:
-                    raise InvalidInput("Research me kaafi points nahi mile. " + " ".join(r.notes))
-                st.result = {"research": r.data}
-            research_data = st.result["research"]
+                    raise InvalidInput("Research me proof ke saath kaafi claims nahi mile. " + " ".join(r.notes))
+                st.result = {"claims": r.data["claims"], "sources": r.data["sources"]}
+            claims_raw = st.result["claims"]
 
-        async with ctx.stage("factcheck", {"research": research_data}) as st:
+        async with ctx.stage("accuracy", {"claims": [c["id"] for c in claims_raw], "n_sources": len(store.sources)}) as st:
             if not st.skipped:
-                await ctx.progress(0.3, "Fact-check agent")
-                f = await facts.verify_points(brief, research_data)
-                if not f.ok:
-                    raise InvalidInput("Fact-check ke baad 3 se kam pakke points bache — topic badlo ya specific likho.")
-                st.result = {"kept": f.data["kept"], "dropped": len(f.data["dropped"])}
-            kept, dropped = st.result["kept"], int(st.result["dropped"])
+                await ctx.progress(0.3, "Accuracy agent (proof check)")
+                a = await accuracy.run(brief, store, claims_raw)
+                if not a.ok:
+                    raise InvalidInput("Accuracy: " + " ".join(a.notes) + " Topic badlo ya aur specific likho.")
+                st.result = {"kept": a.data["accepted"], "dropped": len(a.data["dropped"]), "disputed": len(a.data["disputed"])}
+            kept, dropped = st.result["kept"], int(st.result["dropped"]) + int(st.result.get("disputed", 0))
 
         async with ctx.stage("script", {"kept": kept, "topic": brief.topic}) as st:
             if not st.skipped:
@@ -91,6 +94,12 @@ def register(hub: "Hub") -> None:
         if hub.bot is not None and chat_id:
             try:
                 await hub.bot.send_message(chat_id, report, parse_mode=None)
+                proof = hub.projects.folder(pid, "agents") / "proof.md"
+                if proof.exists():
+                    from aiogram.types import BufferedInputFile
+
+                    await hub.bot.send_document(chat_id, BufferedInputFile(proof.read_bytes(), filename="proof.md"),
+                                                caption="📎 Proof pack — har claim ke links aur quotes", parse_mode=None)
             except Exception:  # noqa: BLE001 - report is also in the job output
                 pass
         hub.audit.record("agent_pipeline", "ok", "project", pid, script=script_id, score=q["data"]["score"])

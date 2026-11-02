@@ -57,8 +57,8 @@ Character/environment library, storyboards, 2D animation, Blender 3D and ComfyUI
 | Item | Status | Notes |
 |---|---|---|
 | Manager job `video_pipeline`: research → fact-check → script → quality (max 2 auto revisions), resumable stages | ✅ sandbox / ⬜ laptop | tests/unit/test_agents.py (fake AI) |
-| Research agent (model memory only, labelled `model_memory`; no live sources yet) | 🟡 | real Ollama quality not tried |
-| Fact-Check agent: second-pass verdicts, weak/disputed claims dropped, unbacked numbers flagged | 🟡 | safety net, not proof |
+| Research agent: Wikipedia (+Brave if `brave:` key) → pages → claims; each claim kept only with a verbatim quote found on the page | ✅ sandbox / ⬜ real internet | tests/unit/test_agents.py (fake web + fake AI) |
+| Accuracy agent: ≥2 independent domains (or 1 gov/edu source) with verified quotes, no contradiction; unproven → 2 rounds of targeted re-research → dropped; proof.md written & sent | ✅ sandbox / ⬜ real internet | not a guarantee of truth — owner still approves |
 | Quality Checker (deterministic, offline) | ✅ | |
 | Never approves a script automatically | ✅ | |
 | Manager chat: plain Hinglish text → intents (new video, status, show script, approve, revise, team); asks haan/nahi before anything runs | ✅ sandbox / ⬜ laptop | tests/unit/test_manager_chat.py |
