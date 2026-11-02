@@ -104,6 +104,23 @@ class SmartLLM:
         return {"claims": claims}
 
 
+class FakeBot:
+    """Telegram test double: records the live progress message and its edits."""
+
+    def __init__(self):
+        self.sent, self.edits = [], []
+
+    async def send_message(self, chat_id, text, parse_mode=None):
+        self.sent.append(text)
+        return type("M", (), {"message_id": 7})()
+
+    async def edit_message_text(self, text, chat_id=None, message_id=None, parse_mode=None):
+        self.edits.append(text)
+
+    async def send_document(self, *a, **k):
+        pass
+
+
 class AgentTests(TempDirCase):
     async def asyncSetUp(self):
         await super().asyncSetUp()
@@ -197,3 +214,22 @@ class AgentTests(TempDirCase):
         out = json.loads(row["output_manifest"])
         self.assertEqual((out["passed"], out["version"]), (True, 2))
         self.assertIn("Auto-badlaav: 1", out["report"])
+
+    async def test_live_progress_message_is_edited_not_spammed(self):
+        self.use()
+        self.hub.bot = bot = FakeBot()
+        j = self.hub.jobs.submit_job("video_pipeline", self.pid, {"project_id": self.pid, "topic": "Bermuda Triangle ke raaz"}, chat_id=5)
+        await self.hub.jobs.wait_idle(timeout=30)
+        self.assertEqual(self.hub.jobs.get_job(j["id"])["status"], "completed")
+        self.assertIn("Research", bot.sent[0])
+        self.assertEqual(len([m for m in bot.sent if m.startswith("🎬")]), 1)  # ONE live message, many edits
+        last = bot.edits[-1]
+        self.assertIn("100%", last)
+        self.assertEqual(len([l for l in last.splitlines() if l.startswith("✅")]), 4, last)
+
+    async def test_live_message_shows_where_it_failed(self):
+        self.use(web=FakeWeb({}))
+        self.hub.bot = bot = FakeBot()
+        self.hub.jobs.submit_job("video_pipeline", self.pid, {"project_id": self.pid, "topic": "Bermuda Triangle ke raaz"}, chat_id=5)
+        await self.hub.jobs.wait_idle(timeout=30)
+        self.assertIn("❌ 🔎 Research", bot.edits[-1])

@@ -83,14 +83,17 @@ class ResearchAgent(Agent):
         return out
 
     async def run(self, brief: Brief, store: EvidenceStore) -> AgentResult:
+        await self.say("search queries bana raha hoon")
         queries = await self._queries(brief)
+        await self.say("web se pages dhundh aur khol raha hoon")
         sources = await self.gather(queries, store, MAX_SOURCES)
         if not sources:
             raise InvalidInput("Internet/search se koi source nahi mila. Internet check karo (Wikipedia khulta hai?) "
                                "ya keys.txt me `brave:<key>` daalo.")
         claims: list[Claim] = []
         seen: set[str] = set()
-        for src in sources:
+        for i, src in enumerate(sources, 1):
+            await self.say(f"{len(sources)} pages mile · claims nikaal raha hoon ({i}/{len(sources)})")
             if len(claims) >= MAX_CLAIMS:
                 break
             try:

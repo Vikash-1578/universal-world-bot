@@ -74,7 +74,8 @@ class AccuracyAgent(Agent):
         self.research = research or ResearchAgent(hub)
 
     async def cross_check(self, store: EvidenceStore, claims: list[Claim], source_ids: list[str]) -> None:
-        for sid in source_ids:
+        for idx, sid in enumerate(source_ids, 1):
+            await self.say(f"proof check — page {idx}/{len(source_ids)}")
             todo = [c for c in claims if sid not in c.support and sid not in c.contradict]
             for i in range(0, len(todo), BATCH):
                 batch = todo[i:i + BATCH]
@@ -121,6 +122,7 @@ class AccuracyAgent(Agent):
             if not todo:
                 break
             new_ids: list[str] = []
+            await self.say(f"{len(todo)} claim ka proof nahi mila — dusri sites par dhundh raha hoon")
             for c in todo:  # targeted re-research: search for THIS claim on other domains
                 have = independent_domains(store, c)
                 for s in await self.research.gather([c.text[:140]], store, 2, skip_domains=have):

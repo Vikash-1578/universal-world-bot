@@ -46,6 +46,11 @@ class Agent:
 
     def __init__(self, hub: "Hub") -> None:
         self.hub = hub
+        self.notify = None  # async callable(text) set by the Manager for live progress
+
+    async def say(self, text: str) -> None:
+        if self.notify:
+            await self.notify(text)
 
     def save(self, project_id: int, result: AgentResult) -> None:
         """Keep every agent's output on disk (project/agents/<name>.json) so the owner can inspect it."""
