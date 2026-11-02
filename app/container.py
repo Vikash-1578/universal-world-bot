@@ -88,6 +88,7 @@ from app.rendering.engine import RenderEngine
     comfy = ComfyUI(img_cfg.get("comfyui_url", "http://127.0.0.1:8188"), img_cfg.get("checkpoint", ""), int(img_cfg.get("steps", 24)))
     cf = CloudflareImages(settings.key("cf_account_id", "cloudflare_account_id"), settings.key("cf_api_token", "cloudflare_api_token", "cloudflare"))
     hub.imagegen = ImageRouter(comfy, cf, lambda: hub.cloud_enabled, lambda: hub.db.get_setting("ai_order", "local") == "cloud")
+    hub.manager_agent = ManagerAgent(hub)
     hub.tts = TTS()
     hub.renderer = RenderEngine(settings.data_dir)
     from app.pipelines import register_all  # job handlers for each milestone
