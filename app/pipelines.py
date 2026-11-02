@@ -1,4 +1,3 @@
-
 async def job_run_agent_pipeline(hub, project_id, params):
     """Runs the full multi-agent pipeline for a project."""
     topic = params.get("topic", "General Facts")
