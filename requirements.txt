@@ -6,3 +6,4 @@ psutil>=5.9,<8
 imageio-ffmpeg>=0.5,<1
 pypdf>=4,<7
 edge-tts>=0.3.0
+httpx>=0.24.0
