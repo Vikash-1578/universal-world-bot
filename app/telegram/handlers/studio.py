@@ -204,6 +204,7 @@ async def show_storyboard(target, hub, pid: int) -> None:
         if st.get("status") in ("draft", "changed", "rejected"):
             kb.append([B(text="✅ Storyboard approve", callback_data=make("sb", "approve", pid)),
                        B(text="❌ Reject", callback_data=make("sb", "reject", pid))])
+    kb.append([B(text="🎬 Final Render", callback_data=make("sb", "render", pid))])
     kb.append(nav(back="m|storyboard", refresh=f"sb|open|{pid}"))
     await show(target, "\n".join(lines), KB(inline_keyboard=kb))
 
