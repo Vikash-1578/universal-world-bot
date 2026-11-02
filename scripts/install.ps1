@@ -7,7 +7,7 @@
     3. Installs the pinned packages from requirements.txt
     4. Creates .env (asks for your bot token + Telegram id) if it does not exist
     5. Creates the local database (data\hub.db)
-    6. Runs diagnostics (GPU, FFmpeg, Blender, disk, RAM ...)
+    6. Runs diagnostics (GPU, FFmpeg, disk, RAM ...)
 
   It does NOT download AI models, change system settings, or need admin rights.
   Usage (from the project folder):   powershell -ExecutionPolicy Bypass -File scripts\install.ps1
@@ -73,7 +73,7 @@ if ((Test-Path $envFile) -or $SkipConfig) {
     [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
     if ($token -notmatch '^\d{5,12}:[A-Za-z0-9_-]{30,}$') { Warn "Token ka format ajeeb hai - baad me .env me theek kar lena." }
     $owner = Read-Host "  Apni Telegram numeric ID (pata nahi to khali chhodo, bot khud batayega)"
-    $lines = @("BOT_TOKEN=$token", "OWNER_ID=$owner", "FFMPEG_PATH=", "BLENDER_PATH=", "LOG_LEVEL=INFO")
+    $lines = @("BOT_TOKEN=$token", "OWNER_ID=$owner", "FFMPEG_PATH=", "LOG_LEVEL=INFO")
     Set-Content -Path $envFile -Value $lines -Encoding UTF8
     $token = $null
     # only the current Windows user may read .env

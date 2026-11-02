@@ -29,7 +29,7 @@ class DashboardTests(TempDirCase):
 
     async def test_create_open_rename_settings_version_archive(self):
         await feed(self.bot, self.dp, cb_update(make("m", "new")))
-        await feed(self.bot, self.dp, cb_update(make("p", "type", "2d")))
+        await feed(self.bot, self.dp, cb_update(make("p", "type", "slideshow")))
         await feed(self.bot, self.dp, msg_update("Kachhua Khargosh Race"))
         rows, total = self.hub.projects.list_projects()
         self.assertEqual((total, rows[0]["name"]), (1, "Kachhua Khargosh Race"))
@@ -50,15 +50,15 @@ class DashboardTests(TempDirCase):
         self.assertIsNotNone(self.hub.projects.get_project(pid)["archived_at"])
 
     async def test_conversation_survives_restart(self):
-        await feed(self.bot, self.dp, cb_update(make("p", "type", "3d")))
+        await feed(self.bot, self.dp, cb_update(make("p", "type", "slideshow")))
         hub2 = make_hub(self.tmp)  # new process, same database
         bot2, dp2, sess2 = make_bot_and_dp(hub2)
-        await feed(bot2, dp2, msg_update("Blender Demo"))
-        self.assertEqual(hub2.projects.list_projects()[0][0]["project_type"], "3d")
+        await feed(bot2, dp2, msg_update("Demo Video"))
+        self.assertEqual(hub2.projects.list_projects()[0][0]["project_type"], "slideshow")
         hub2.db.close()
 
     async def test_bad_project_name(self):
-        await feed(self.bot, self.dp, cb_update(make("p", "type", "2d")))
+        await feed(self.bot, self.dp, cb_update(make("p", "type", "slideshow")))
         await feed(self.bot, self.dp, msg_update("x"))
         self.assertIn("2 akshar", texts(self.sess)[-1])
 

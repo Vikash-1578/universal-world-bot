@@ -1,4 +1,5 @@
-"""Milestone 4. The AI used here is a TEST DOUBLE (FakeLLM) — it proves our handling of AI output,
+"""Scripts: parser, versions, AI drafting, LLM routing.
+Milestone 4. The AI used here is a TEST DOUBLE (FakeLLM) — it proves our handling of AI output,
 not that a real model writes good scripts."""
 import json
 import tempfile
@@ -106,11 +107,11 @@ class ParserTests(TempDirCase):
             read_text_file(t / "e.txt")
 
 
-class ScriptStoryboardTests(TempDirCase):
+class ScriptVersionTests(TempDirCase):
     async def asyncSetUp(self):
         await super().asyncSetUp()
         self.hub = make_hub(self.tmp)
-        self.pid = self.hub.projects.create_project("Race", "2d")["id"]
+        self.pid = self.hub.projects.create_project("Race", "slideshow")["id"]
 
     async def asyncTearDown(self):
         self.hub.db.close()
@@ -130,75 +131,6 @@ class ScriptStoryboardTests(TempDirCase):
         self.assertEqual([v["version_number"] for v in sc.versions(self.pid)], [2, 1])
         with self.assertRaises(InvalidInput):
             sc.create_version(self.pid, "hi")
-
-    async def test_storyboard_rules_draft_edit_reorder_approve(self):
-        sb = self.hub.storyboards
-        sb.llm = FakeLLM(ok=False)  # no AI: rules-only draft must still work
-        with self.assertRaises(Conflict):
-            await sb.generate_draft(self.pid)  # script not approved yet
-        v = self.hub.scripts.create_version(self.pid, SCRIPT)
-        self.hub.scripts.approve(v["id"])
-        st = await sb.generate_draft(self.pid)
-        self.assertEqual((st["status"], st["source"]), ("draft", "rules only"))
-        scenes = sb.scenes(self.pid)
-        self.assertEqual(len(scenes), 3)
-        self.assertEqual(scenes[0]["camera"]["shot"], "wide")
-        self.assertEqual(scenes[1]["camera"]["lighting"], "bright daylight")
-        self.assertEqual(scenes[2]["camera"]["lighting"], "warm sunset")
-        self.assertEqual(scenes[0]["camera"]["emotions"], {"Khargosh": "gusse me"})
-        sb.approve(self.pid)
-        self.assertTrue(sb.is_approved(self.pid))
-        with self.assertRaises(Conflict):
-            await sb.generate_draft(self.pid)  # approved storyboard is not silently replaced
-        sb.update_scene(self.pid, scenes[1]["id"], {"shot": "close-up", "description": "Pul toot-ta hai"})
-        self.assertEqual(sb.state(self.pid)["status"], "changed")
-        self.assertFalse(sb.is_approved(self.pid))
-        order = [s["id"] for s in sb.reorder_scene(self.pid, scenes[2]["id"], 1)]
-        self.assertEqual(order, [scenes[2]["id"], scenes[0]["id"], scenes[1]["id"]])
-        with self.assertRaises(InvalidInput):
-            sb.update_scene(self.pid, scenes[0]["id"], {"shot": "drone-hack"})
-        with self.assertRaises(InvalidInput):
-            sb.update_scene(self.pid, scenes[0]["id"], {"dialogue_json": "x"})
-        sb.approve(self.pid)
-        self.assertEqual(self.hub.projects.get_project(self.pid)["status"], "production")
-        # script changes after approval -> storyboard no longer counts as approved
-        v2 = self.hub.scripts.create_version(self.pid, SCRIPT + "Narrator: The end.\n")
-        self.hub.scripts.approve(v2["id"])
-        self.assertFalse(sb.is_approved(self.pid))
-        with self.assertRaises(Conflict):
-            sb.approve(self.pid)
-
-    async def test_ai_director_suggestions_validated(self):
-        reply = json.dumps({"scenes": [
-            {"n": 1, "environment": "Jungle track", "shot": "two-shot", "movement": "pan left", "transition": "dissolve",
-             "lighting": "golden", "mood": "excited", "props": ["flag"], "sfx": ["whistle"], "emotions": {"Sher": "proud"}},
-            {"n": 2, "shot": "HACKER", "movement": "???", "sfx": ["splash"]},
-        ]})
-        sb = self.hub.storyboards
-        sb.llm = FakeLLM([reply])
-        v = self.hub.scripts.create_version(self.pid, SCRIPT)
-        self.hub.scripts.approve(v["id"])
-        st = await sb.generate_draft(self.pid)
-        self.assertIn("AI Director", st["source"])
-        s = sb.scenes(self.pid)
-        self.assertEqual((s[0]["camera"]["shot"], s[0]["camera"]["transition"], s[0]["environment_ref"]), ("two-shot", "dissolve", "Jungle track"))
-        self.assertEqual(s[1]["camera"]["shot"], "two-shot")  # invalid AI value -> kept rules default
-        self.assertEqual(s[1]["camera"]["sfx"], ["splash"])
-        self.assertEqual(s[2]["camera"]["source"], "rules")  # AI gave nothing for scene 3
-        self.assertEqual(s[0]["dialogue"][1]["text"], "Is baar main sota nahi, seedha jeetunga!")  # dialogue untouched
-
-    async def test_ai_director_failure_keeps_rules_draft(self):
-        class Broken(FakeLLM):
-            async def chat_json(self, prompt, **kw):
-                raise ValueError("garbage")
-
-        sb = self.hub.storyboards
-        sb.llm = Broken()
-        v = self.hub.scripts.create_version(self.pid, SCRIPT)
-        self.hub.scripts.approve(v["id"])
-        st = await sb.generate_draft(self.pid)
-        self.assertIn("fail", st["source"])
-        self.assertEqual(len(sb.scenes(self.pid)), 3)
 
     async def test_ai_write_job(self):
         self.hub.scripts.llm = FakeLLM(["```\n" + SCRIPT + "```"])

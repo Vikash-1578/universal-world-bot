@@ -60,7 +60,6 @@ class Settings:
     fps: int = 30
     temp_retention_days: int = 7
     ffmpeg: str = ""
-    blender: str = ""
     log_level: str = "INFO"
     raw: dict = field(default_factory=dict)
 
@@ -123,7 +122,6 @@ def load_settings(base_dir: Path | None = None, env: dict[str, str] | None = Non
         fps=int(render.get("fps", 30)),
         temp_retention_days=int(raw.get("storage", {}).get("temp_retention_days", 7)),
         ffmpeg=env.get("FFMPEG_PATH", raw.get("tools", {}).get("ffmpeg", "")),
-        blender=env.get("BLENDER_PATH", raw.get("tools", {}).get("blender", "")),
         log_level=env.get("LOG_LEVEL", hub.get("log_level", "INFO")),
         raw=raw,
     )

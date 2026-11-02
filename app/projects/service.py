@@ -17,10 +17,11 @@ from app.storage.db import Database, dumps, loads
 from app.storage.files import safe_join, sha256
 
 MANIFEST_SCHEMA = 1
-TYPES = {"2d": "2D cartoon", "3d": "3D (Blender)", "slideshow": "Images + narration"}
+# DB constraint allows 2d/3d/slideshow only; "slideshow" = stock clips/images + narration (facts, history, mystery videos).
+TYPES = {"slideshow": "Facts / History / Mystery video"}
 STATUSES = ("draft", "scripting", "storyboard", "production", "rendering", "review", "done", "archived")
-DEFAULT_SETTINGS = {"language": "hindi", "aspect": "16:9", "fps": 30, "resolution": "1080p", "audience": "kids",
-                    "tone": "fun", "style": "kids cartoon", "target_seconds": 60, "cloud_ok": False}
+DEFAULT_SETTINGS = {"language": "hinglish", "aspect": "16:9", "fps": 30, "resolution": "1080p", "audience": "general",
+                    "tone": "curious", "style": "documentary", "target_seconds": 480, "cloud_ok": False}
 ASPECTS = ("16:9", "9:16", "1:1")
 
 
@@ -37,12 +38,12 @@ class ProjectService:
         return p
 
     # ---------------------------------------------------------------- CRUD
-    def create_project(self, name: str, project_type: str = "2d", settings: dict | None = None) -> dict:
+    def create_project(self, name: str, project_type: str = "slideshow", settings: dict | None = None) -> dict:
         name = " ".join((name or "").split())[:80]
         if len(name) < 2:
             raise InvalidInput("Project ka naam kam se kam 2 akshar ka ho.")
         if project_type not in TYPES:
-            raise InvalidInput("Project type 2d, 3d ya slideshow ho.")
+            raise InvalidInput("Project type galat hai.")
         merged = {**DEFAULT_SETTINGS, **self._clean_settings(settings or {})}
         now = time.time()
         pid = self.db.insert("projects", {"name": name, "project_type": project_type, "status": "draft",

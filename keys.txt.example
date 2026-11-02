@@ -6,5 +6,3 @@
 # Examples (remove the '#' and put your real key):
 # groq:gsk_your_key_here
 # gemini:AIza_your_key_here
-# CF_ACCOUNT_ID=your_cloudflare_account_id
-# CF_API_TOKEN=your_cloudflare_token

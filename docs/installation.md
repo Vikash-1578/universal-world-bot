@@ -1,7 +1,7 @@
 # Installation (Windows 11)
 
-You need: Python 3.12 (python.org, tick "Add python.exe to PATH"), Git for Windows (optional), and later
-Blender 4.x for 3D. No administrator rights are needed.
+You need: Python 3.12 (python.org, tick "Add python.exe to PATH"), Git for Windows (optional), and FFmpeg.
+No administrator rights are needed.
 
 ## 1. Get the code
 ```powershell

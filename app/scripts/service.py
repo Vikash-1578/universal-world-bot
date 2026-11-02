@@ -21,51 +21,52 @@ if TYPE_CHECKING:
 MAX_SCRIPT = 60_000
 LANG = {"hindi": "Hindi (Devanagari script)", "english": "English", "hinglish": "Hinglish (Hindi in Latin letters)"}
 
-WRITE_PROMPT = """You are an award-winning children's and family cartoon script writer.
-Write an ORIGINAL short animated story script.
-Idea: {idea}
-Language for the story text: {lang}. Audience: {audience}. Tone: {tone}. Target length: about {seconds} seconds.
+WRITE_PROMPT = """You are a researcher and scriptwriter for a faceless YouTube channel about amazing facts, history, geography,
+science and mysteries. Write an ORIGINAL narration script.
+Topic: {idea}
+Language for the narration: {lang}. Audience: {audience}. Tone: {tone}. Target length: about {seconds} seconds.
 
-Story rules:
-- 2-4 named characters with different personalities; a hook in the very first line; a small twist; a clear ending with a lesson.
-- Every line must move the story forward. NEVER repeat the same sentence or catchphrase more than once.
-- Use simple, natural, correct words a child understands. No made-up words. No copyrighted characters.
-- 3-6 scenes.
+Content rules:
+- Start with a strong hook in the very first line (a surprising fact or question). End with a clear closing line.
+- Only state facts you are confident are true. Do NOT invent names, dates, numbers or quotes. If something is disputed or unproven,
+  say so plainly ("historians disagree", "this is a theory"). Leave out anything you are unsure about.
+- Mysteries: separate what is known, what is claimed, and what is proven. No fear-mongering and no graphic detail.
+- Never repeat the same sentence or phrase. Use simple, natural, correct words. 5-9 scenes, each with a clear point.
 
 FORMAT RULES (very important — a computer reads this):
-- The markers Title:, [Scene N: ...] and Narrator: are ALWAYS written in English letters exactly like this, even for a Hindi story.
-- Emotion / action goes in brackets AFTER the colon: Name: (emotion) dialogue
-- Stage directions on their own line in brackets: (Khargosh runs away)
+- The markers Title:, [Scene N: ...] and Narrator: are ALWAYS written in English letters exactly like this, even for a Hindi script.
+- After the scene marker, put a short visual hint for the editor (what footage or map to show), then the narration lines.
+- Visual hints go on their own line in brackets: (show: old map of the Atlantic)
 - No markdown, no bold, no notes, nothing before Title: and nothing after the last line.
 
 EXAMPLE OF THE FORMAT (content is only an example):
-Title: चतुर लोमड़ी
-[Scene 1: जंगल, सुबह]
-Narrator: एक जंगल में एक चतुर लोमड़ी रहती थी।
-लोमड़ी: (मुस्कुराते हुए) आज मैं कुछ नया सीखूंगी!
-(लोमड़ी पेड़ के पीछे छिप जाती है)
-[Scene 2: नदी किनारा, दोपहर]
+Title: Bermuda Triangle ka asli raaz
+[Scene 1: Hook]
+(show: stormy ocean, ship on horizon)
+Narrator: Kya ek poora jahaz bina nishaan ke gayab ho sakta hai?
+[Scene 2: Kahani kahan se shuru hui]
+(show: map of the Atlantic with the triangle)
 Narrator: ...
 
 Now write the full script:
 """
 
-STORY_PROMPT = """Turn this story into a short animated cartoon SCRIPT. Keep the story, its characters and its ending.
-Give the characters short spoken lines (dialogue) where it fits; use Narrator for the rest.
-Language for the story text: {lang}. Audience: {audience}. 3-6 scenes. Do not repeat lines.
+STORY_PROMPT = """Turn these notes into a narration SCRIPT for a faceless facts / history / mystery YouTube video.
+Keep the facts as given; do not add facts you are not sure about. Do not invent names, dates or numbers.
+Language for the narration: {lang}. Audience: {audience}. 5-9 scenes. Do not repeat lines.
 
 FORMAT RULES (a computer reads this):
-- Title:, [Scene N: place, time] and Narrator: are ALWAYS in English letters, even for a Hindi story.
-- Name: (emotion) dialogue      - stage directions on their own line in brackets
+- Title:, [Scene N: topic] and Narrator: are ALWAYS in English letters, even for a Hindi script.
+- Visual hints on their own line in brackets: (show: ...)
 - No markdown, nothing before Title: and nothing after the last line.
 
-STORY:
+NOTES:
 {story}
 """
 
-REVISE_PROMPT = """Revise this cartoon script. Keep the same format: Title:, [Scene N: ...], Narrator: (always in English letters),
-Name: (emotion) dialogue. Do not repeat lines. Use simple correct words.
-Keep character names consistent. Change ONLY what the instruction asks.
+REVISE_PROMPT = """Revise this narration script. Keep the same format: Title:, [Scene N: ...], (show: ...) visual hints,
+Narrator: (always in English letters). Do not repeat lines. Use simple correct words.
+Do not add facts you are not sure about. Change ONLY what the instruction asks.
 Instruction: {instruction}
 
 SCRIPT:
@@ -150,23 +151,23 @@ class ScriptService:
         if len(idea) < 5:
             raise InvalidInput("Idea thoda aur likho.")
         s = self.projects.get_project(project_id)["settings"]
-        prompt = WRITE_PROMPT.format(idea=idea, lang=LANG.get(s.get("language", "hindi"), "Hindi"),
-                                     audience=s.get("audience", "kids"), tone=s.get("tone", "fun"),
+        prompt = WRITE_PROMPT.format(idea=idea, lang=LANG.get(s.get("language", "hinglish"), "Hinglish (Hindi in Latin letters)"),
+                                     audience=s.get("audience", "general"), tone=s.get("tone", "curious"),
                                      seconds=s.get("target_seconds", 60))
         text = await self.llm.chat(prompt, max_tokens=3000)
         return self.create_version(project_id, _clean(text), note=f"AI ({self.llm.last_provider})")
 
     async def story_to_script(self, project_id: int, story: str) -> dict:
-        """A pasted / uploaded prose story -> script format (characters + dialogue) with AI."""
+        """Pasted / uploaded notes -> narration script format with AI."""
         if self.llm is None:
             from app.models.llm import LLMUnavailable
 
             raise LLMUnavailable("AI engine set nahi hai.")
         story = (story or "").strip()[:12000]
         s = self.projects.get_project(project_id)["settings"]
-        text = await self.llm.chat(STORY_PROMPT.format(story=story, lang=LANG.get(s.get("language", "hindi"), "Hindi"),
-                                                       audience=s.get("audience", "kids")), max_tokens=3500)
-        return self.create_version(project_id, _clean(text), note=f"Kahani se script, AI ({self.llm.last_provider})")
+        text = await self.llm.chat(STORY_PROMPT.format(story=story, lang=LANG.get(s.get("language", "hinglish"), "Hinglish (Hindi in Latin letters)"),
+                                                       audience=s.get("audience", "general")), max_tokens=3500)
+        return self.create_version(project_id, _clean(text), note=f"Notes se script, AI ({self.llm.last_provider})")
 
     async def revise_with_ai(self, script_id: int, instruction: str) -> dict:
         if self.llm is None:

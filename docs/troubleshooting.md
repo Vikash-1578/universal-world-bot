@@ -8,7 +8,6 @@
 | `running scripts is disabled` | PowerShell execution policy | Use `powershell -ExecutionPolicy Bypass -File scripts\...` exactly as written. |
 | `python` not found | Python not installed / not on PATH | Install Python 3.12 from python.org with "Add to PATH". |
 | FFmpeg ❌ in diagnostics | Packages not installed | Run `scripts\install.ps1` again, or `winget install Gyan.FFmpeg`. |
-| Blender ⚠️ | Not installed / different folder | Install Blender 4.x, or set `BLENDER_PATH=` in `.env`. 3D stays off until then. |
 | Job stuck "resource ka wait" | Another heavy job is running | Normal; it starts when the first finishes. Change `max_heavy_workers` only if you have spare RAM/VRAM. |
 | Job "🔁 dobara try hoga" | Temporary error (network etc.) | It retries automatically a few times with a pause. |
 | Button says "purana ho gaya" | The screen is old (bot restarted or data changed) | Send `/menu`. |

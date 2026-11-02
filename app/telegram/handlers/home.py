@@ -14,19 +14,15 @@ from app.telegram.ui import answer, fail, show
 router = Router(name="home")
 
 HOME_TEXT = ("🌍 Universal World — Video Production Hub\n\n"
-             "🎬 Nayi video banao dabao — bot ek-ek step me le chalega:\nKahani → Characters → Awaaz → Final check → Video.")
+             "🎬 Nayi video banao dabao — project banao, phir 📜 Script Studio me script likhwao ya bhejo.\nFacts · History · Geography · Mystery videos.")
 
 HELP_TEXT = ("❓ Help\n\n"
              "• 📁 Projects — tumhare saare video projects. Kholo, naam/settings badlo, version save karo.\n"
-             "• 🎬 New Production — naya project (2D cartoon / 3D Blender / images + narration).\n"
+             "• 🎬 Nayi video — naya project (Facts / History / Mystery video).\n"
              "• 📜 Script Studio — script bhejo (text/file/voice) ya AI se likhwao, versions, approve.\n"
-             "• 🎞 Storyboard — approved script se scenes; shot/jagah/time badlo, upar-neeche karo, phir approve.\n"
-             "• 🧍 Characters / 🏞 Environments — apni library: image do (background apne aap hatta hai), expressions, poses, "
-             "1100+ templates, package export/import. Project me 🎭 Casting se script ke characters ko library item do.\n"
-             "• 🎭 Animation / 📤 Export — storyboard + casting se 2D cartoon video (preview 360p ya final). Awaaz Milestone 8 me.\n"
-             "• ⏳ Job Queue — lambe kaam (render, awaaz...) yahan chalte hain. Pause, resume, cancel, retry.\n"
+             "• ⏳ Job Queue — lambe kaam (AI script, awaaz...) yahan chalte hain. Pause, resume, cancel, retry.\n"
              "• ⚙️ Settings — Cloud AI on/off. Default OFF: koi paid/cloud service bina tumhari permission ke nahi chalegi.\n"
-             "• 🩺 Diagnostics — laptop, GPU, FFmpeg, Blender, database ki jaanch + self-test video.\n\n"
+             "• 🩺 Diagnostics — laptop, GPU, FFmpeg, database ki jaanch + self-test video.\n\n"
              "Bot laptop par chalta hai. Laptop band / so gaya ya terminal band hua = bot jawab nahi dega. "
              "Dobara chalane ke liye scripts\\start.ps1 chalao.\n\n"
              "Kahin bhi atak jao: /menu likho.")
@@ -37,7 +33,7 @@ def coming_soon(key: str) -> str:
     m = AVAILABLE[key]
     return (f"{label}\n\n🚧 Ye hissa Milestone {m} me banega. Abhi kaam nahi karta — "
             f"jab tak wo test na ho jaye, bot ise chalne wala nahi batayega.\n\n"
-            "Abhi chalne wale: Projects, New Production, Script Studio, Storyboard, Characters, Environments, Animation, Render & Export, Job Queue, Settings, Diagnostics, Help.")
+            "Abhi chalne wale: Projects, Nayi video, Script Studio, Job Queue, Settings, Diagnostics, Help.")
 
 
 @router.message(CommandStart())
@@ -73,29 +69,11 @@ async def cb_menu(cb: CallbackQuery, hub) -> None:
             await answer(cb, "Jaanch chal rahi hai...")
             await show_diagnostics(cb, hub)
             return
-        if c.action in ("characters", "environments"):
-            from app.telegram.handlers.library import home as lib_home
-
-            await answer(cb)
-            await lib_home(cb, hub, "c" if c.action == "characters" else "e")
-            return
-        if c.action in ("script", "storyboard"):
+        if c.action == "script":
             from app.telegram.handlers.studio import pick_project
 
             await answer(cb)
-            await pick_project(cb, hub, "ss" if c.action == "script" else "sb", 0)
-            return
-        if c.action in ("animation", "export"):
-            from app.telegram.handlers.animation import pick
-
-            await answer(cb)
-            await pick(cb, hub, 0)
-            return
-        if c.action == "new":
-            from app.telegram.handlers.wizard import start
-
-            await answer(cb)
-            await start(cb, hub)
+            await pick_project(cb, hub, "ss", 0)
             return
         if c.action == "tools":
             from app.telegram.keyboards.menus import tools_menu

@@ -1,7 +1,7 @@
 <#
   Check everything the bot needs and say how to fix problems:
     powershell -ExecutionPolicy Bypass -File scripts\diagnose.ps1
-  Checks: Python, CPU, RAM, disk, NVIDIA GPU + driver, FFmpeg/ffprobe, Blender, database, .env, keys.txt.
+  Checks: Python, CPU, RAM, disk, NVIDIA GPU + driver, FFmpeg/ffprobe, database, .env, keys.txt.
   It only reads - nothing is installed or changed.
 #>
 $Root = Split-Path -Parent $PSScriptRoot

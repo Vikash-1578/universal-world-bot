@@ -1,4 +1,4 @@
-"""System diagnostics: Python, disk, RAM, CPU, GPU/driver, FFmpeg, Blender, database, configuration.
+"""System diagnostics: Python, disk, RAM, CPU, GPU/driver, FFmpeg, database, configuration.
 
 Each check returns a plain-language status + a fix. Used by scripts/diagnose.ps1 (via `python -m app.diagnose`)
 and by the Telegram "System Diagnostics" screen. Nothing here installs or changes anything.
@@ -81,21 +81,6 @@ def find_ffprobe(ffmpeg: str | None) -> str | None:
     return None
 
 
-def find_blender(s: Settings) -> str | None:
-    if s.blender and Path(s.blender).exists():
-        return s.blender
-    exe = shutil.which("blender")
-    if exe:
-        return exe
-    pf = os.environ.get("ProgramFiles")
-    if pf:
-        root = Path(pf) / "Blender Foundation"
-        found = sorted(root.glob("Blender*/blender.exe"), reverse=True) if root.exists() else []
-        if found:
-            return str(found[0])
-    return None
-
-
 def check_python() -> Check:
     v = sys.version_info
     if v >= (3, 11):
@@ -157,18 +142,6 @@ def check_ffmpeg(s: Settings) -> Check:
                  {"ffmpeg": exe, "ffprobe": probe})
 
 
-def check_blender(s: Settings) -> Check:
-    exe = find_blender(s)
-    if not exe:
-        return Check("Blender", WARN, "nahi mila (3D pipeline band rahegi)",
-                     "blender.org se Blender 4.x install karo, ya .env me BLENDER_PATH=... likho.")
-    code, out = _run([exe, "--version"], timeout=60)
-    first = out.strip().splitlines()[0] if out.strip() else ""
-    if code != 0 or "Blender" not in first:
-        return Check("Blender", WARN, "mila par chala nahi", "Blender dobara install karo.", {"blender": exe})
-    return Check("Blender", OK, first, data={"blender": exe})
-
-
 def check_database(s: Settings) -> Check:
     try:
         from app.storage.db import MIGRATIONS, Database
@@ -220,8 +193,6 @@ def _commented_keys(path: Path) -> list[str]:
 
 def run_all(s: Settings, include_slow: bool = True) -> list[Check]:
     checks = [check_python(), check_cpu(), check_ram(), check_disk(s), check_gpu(), check_ffmpeg(s)]
-    if include_slow:
-        checks.append(check_blender(s))
     checks.append(check_database(s))
     checks += check_config(s)
     return checks

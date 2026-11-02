@@ -25,9 +25,6 @@ class Hub:
     jobs: JobService
     llm: Any = None
     scripts: Any = None
-    storyboards: Any = None
-    library: Any = None
-    imagegen: Any = None
     extra: dict[str, Any] = field(default_factory=dict)
     status: dict[str, str] = field(default_factory=dict)
     bot: Any = None
@@ -70,22 +67,12 @@ def build_hub(settings: Settings) -> Hub:
     )
     from app.models.llm import LLM
     from app.scripts.service import ScriptService
-    from app.storyboards.service import StoryboardService
 
     llm_cfg = settings.raw.get("llm", {})
     hub.llm = LLM(settings.keys, lambda: hub.cloud_enabled, models=llm_cfg.get("models"),
                   ollama_url=llm_cfg.get("ollama_url", "http://127.0.0.1:11434"), ollama_model=llm_cfg.get("ollama_model", ""),
                   prefer_cloud=lambda: hub.db.get_setting("ai_order", "local") == "cloud")
     hub.scripts = ScriptService(db, hub.projects, hub.llm)
-    hub.storyboards = StoryboardService(db, hub.projects, hub.scripts, hub.llm)
-    from app.characters.service import LibraryService
-    from app.models.imagegen import CloudflareImages, ComfyUI, ImageRouter
-
-    img_cfg = settings.raw.get("image", {})
-    hub.library = LibraryService(db, settings.data_dir)
-    comfy = ComfyUI(img_cfg.get("comfyui_url", "http://127.0.0.1:8188"), img_cfg.get("checkpoint", ""), int(img_cfg.get("steps", 24)))
-    cf = CloudflareImages(settings.key("cf_account_id", "cloudflare_account_id"), settings.key("cf_api_token", "cloudflare_api_token", "cloudflare"))
-    hub.imagegen = ImageRouter(comfy, cf, lambda: hub.cloud_enabled, lambda: hub.db.get_setting("ai_order", "local") == "cloud")
     from app.pipelines import register_all  # job handlers for each milestone
 
     from app.telegram.conversations.state import Conversations

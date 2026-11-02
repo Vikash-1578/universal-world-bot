@@ -1,10 +1,11 @@
 # Universal World Bot
 
-A private, single-owner **AI video production hub controlled from Telegram**, running on your own Windows laptop.
-Projects, scripts, storyboards with approval, reusable characters, a 2D pipeline, a Blender 3D pipeline, audio,
-subtitles, persistent jobs, exports and backups — built in tested milestones.
+A private, single-owner **AI production hub controlled from Telegram**, running on your own Windows laptop,
+for faceless **facts / history / geography / science / mystery** YouTube videos (channel: Verinomia).
+Projects, script writing with approval, persistent jobs, exports and backups — plus a team of specialist agents
+(Manager, Research, Fact-Check, Script, Quality Checker, then Voice, Media, Editor ...) being added step by step.
 
-> Status: Milestones 1–5 (foundation, dashboard, persistent scheduler, script + storyboard with approvals, character/environment library) are working and tested.
+> Status: foundation, dashboard, persistent scheduler and script studio (with approvals) exist. Cartoon / character / animation / Blender code has been removed.
 > See [docs/CHECKLIST.md](docs/CHECKLIST.md) for exactly what works and what does not yet.
 
 * Only your Telegram account can use it.

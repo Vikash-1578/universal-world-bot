@@ -9,11 +9,11 @@ Telegram  ──►  app/telegram (handlers, keyboards, callbacks, conversations
                     ▼
                app/container.Hub  (dependency container; handlers only call services)
                     │
-   ┌────────────┬───┴──────────┬──────────────┬────────────────┬──────────────┐
- projects    scheduler       scripts /      characters /     animation       exports /
- (manifests, (persistent     storyboards    environments     two_d / three_d  rendering
-  versions)   jobs, stages,  (approval      (asset library)  (Pillow+FFmpeg / (FFmpeg, probe,
-              checkpoints)    gates)                          Blender)         validation)
+   ┌────────────┬───┴──────────┬──────────────┬────────────────┐
+ projects    scheduler       scripts         agents (next)    exports /
+ (manifests, (persistent     (versions,      Manager +        rendering
+  versions)   jobs, stages,   approval)       specialists      (FFmpeg)
+              checkpoints)
                     │
                storage (SQLite + migrations, safe paths, checksums)  ·  observability (logs, audit, diagnostics)
 ```
@@ -27,8 +27,8 @@ Telegram  ──►  app/telegram (handlers, keyboards, callbacks, conversations
   handler, with heavy/light worker limits so the laptop is not overloaded (default: 1 heavy job).
 * **Stages + checkpoints.** A job is a list of stages; each finished stage stores a small JSON checkpoint and the
   checksum of its inputs. After a crash/restart the job resumes and skips finished stages whose inputs did not change.
-  Non-resumable steps (one FFmpeg/Blender render) simply restart that stage.
-* **Approvals.** A job can stop in `waiting_for_approval` (e.g. storyboard) and only continues after the owner approves.
+  Non-resumable steps (one FFmpeg render) simply restart that stage.
+* **Approvals.** A job can stop in `waiting_for_approval` (e.g. script) and only continues after the owner approves.
 * **Data stays local.** Everything lives under `data/` (configurable): `hub.db`, `projects/<id>/...`, `work/`.
   Media is on disk; the database stores relative paths + SHA-256 checksums.
 * **Honesty.** Menu sections that are not built yet say which milestone they arrive in. Tests that use fakes
@@ -40,7 +40,7 @@ Telegram  ──►  app/telegram (handlers, keyboards, callbacks, conversations
 
 ## Database
 SQLite with numbered migrations in `migrations/` (applied in a transaction at start-up; the app refuses to run on a
-database newer than its code). Tables: projects, project_versions, scripts, scenes, assets, characters, jobs,
+database newer than its code). Tables: projects, project_versions, scripts, scenes, assets, jobs,
 job_dependencies, job_stages, models, exports, settings, audit_events, approvals.
 
 ## Changes from the suggested structure

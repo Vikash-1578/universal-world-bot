@@ -9,11 +9,9 @@ from app.telegram.callbacks.codec import make
 # (key, label, milestone that makes it work; 0 = available now)
 MAIN = [
     ("projects", "📁 Projects", 0), ("new", "🎬 Nayi video", 0),
-    ("script", "📜 Script Studio", 0), ("storyboard", "🎞 Storyboard", 0),
-    ("characters", "🧍 Characters", 0), ("environments", "🏞 Environments", 0),
-    ("animation", "🎭 Animation", 0), ("audio", "🎤 Audio", 8),
+    ("script", "📜 Script Studio", 0), ("audio", "🎤 Audio", 8),
     ("subtitles", "💬 Subtitles", 8), ("models", "🧠 Model Manager", 9),
-    ("jobs", "⏳ Job Queue", 0), ("export", "📤 Render & Export", 0),
+    ("jobs", "⏳ Job Queue", 0), ("export", "📤 Render & Export", 7),
     ("assets", "🗂 Assets & Storage", 10), ("backups", "💾 Backups", 10),
     ("settings", "⚙️ Settings", 0), ("diag", "🩺 Diagnostics", 0),
     ("help", "❓ Help", 0),
@@ -21,7 +19,7 @@ MAIN = [
 AVAILABLE: dict[str, int] = {k: m for k, _, m in MAIN}
 
 
-PRIMARY = [("new", "🎬 Nayi video banao"), ("projects", "📁 Mere projects"), ("characters", "🧍 Characters & jagah"),
+PRIMARY = [("new", "🎬 Nayi video banao"), ("projects", "📁 Mere projects"), ("script", "📜 Script Studio"),
            ("jobs", "⏳ Chal rahe kaam"), ("settings", "⚙️ Settings"), ("tools", "🧰 Aur tools")]
 
 

@@ -11,7 +11,7 @@ from app.telegram.ui import ago, answer, fail, show
 
 router = Router(name="projects")
 PER = 6
-TYPE_ICON = {"2d": "🎨", "3d": "🧊", "slideshow": "🖼"}
+TYPE_ICON = {"slideshow": "🌍"}
 
 
 async def show_list(target, hub, page: int, archived: bool = False) -> None:
@@ -44,14 +44,8 @@ def project_text(p: dict, versions: int) -> str:
 async def show_project(target, hub, pid: int) -> None:
     p = hub.projects.get_project(pid)
     n = len(hub.projects.versions(pid))
-    from app.telegram.handlers.wizard import STEP_LABEL, next_step
-
-    step = next_step(hub, pid) if p["project_type"] == "2d" else ""
     rows = [
-        *([[B(text=f"▶ Aage badho: {STEP_LABEL[step]}", callback_data=make("w", "next", pid))]] if step else []),
-        [B(text="📜 Script", callback_data=make("ss", "open", pid)), B(text="🎞 Storyboard", callback_data=make("sb", "open", pid))],
-        [B(text="🎭 Casting (characters/jagah)", callback_data=make("lb", "cast", pid))],
-        [B(text="🎬 Animation / Video banao", callback_data=make("an", "open", pid))],
+        [B(text="📜 Script", callback_data=make("ss", "open", pid))],
         [B(text="⚙️ Settings", callback_data=make("p", "set", pid)), B(text="✏️ Naam badlo", callback_data=make("p", "rename", pid))],
         [B(text="💾 Version save", callback_data=make("p", "save", pid)), B(text="🕘 Versions", callback_data=make("p", "vers", pid))],
         [B(text="⏳ Is project ke jobs", callback_data=make("j", "list", 0, pid))],
@@ -64,10 +58,8 @@ async def show_project(target, hub, pid: int) -> None:
 async def start_new(target, hub) -> None:
     kb = [[B(text=f"{TYPE_ICON[k]} {v}", callback_data=make("p", "type", k))] for k, v in TYPES.items()]
     kb.append(nav(cancel=True))
-    await show(target, "🎬 New Production\n\nKis tarah ka video?\n"
-                       "• 2D cartoon — characters, awaaz, lip-sync (Milestone 6)\n"
-                       "• 3D — Blender scene/render (Milestone 7)\n"
-                       "• Images + narration — photos par awaaz aur subtitles", KB(inline_keyboard=kb))
+    await show(target, "🎬 Nayi video\n\nFacts / History / Geography / Mystery video — stock clips + narration + subtitles.",
+               KB(inline_keyboard=kb))
 
 
 def settings_kb(p: dict) -> KB:
@@ -84,7 +76,7 @@ def settings_kb(p: dict) -> KB:
         [B(text=mark(s.get("target_seconds") == t, f"{t}s"), callback_data=make("p", "opt", pid, "target_seconds", t))
          for t in (30, 60, 120, 300)],
         [B(text=mark(s.get("audience") == a, lab), callback_data=make("p", "opt", pid, "audience", a))
-         for a, lab in (("kids", "👶 Kids"), ("general", "👪 Sab"), ("adult", "🧑 Adult"))],
+         for a, lab in (("general", "👪 Sab"), ("students", "🎓 Students"), ("adult", "🧑 Adult"))],
         nav(back=f"p|open|{pid}"),
     ])
 
@@ -107,7 +99,7 @@ async def cb_projects(cb: CallbackQuery, hub) -> None:
                 raise ValueError("bad type")
             conv.set(cb.from_user.id, "new_project_name", project_type=c.arg())
             await answer(cb)
-            await show(cb, f"{TYPE_ICON[c.arg()]} {TYPES[c.arg()]}\n\nAb project ka naam likh ke bhejo (jaise: Kachhua Khargosh Race).",
+            await show(cb, f"{TYPE_ICON[c.arg()]} {TYPES[c.arg()]}\n\nAb project ka naam likh ke bhejo (jaise: Bermuda Triangle ka raaz).",
                        KB(inline_keyboard=[nav(back="m|new", cancel=True)]))
         elif a == "rename":
             hub.projects.get_project(c.int(0))
@@ -164,7 +156,7 @@ async def on_text(message: Message, hub, step: str, data: dict) -> bool:
     uid = message.from_user.id if message.from_user else 0
     text = (message.text or "").strip()
     if step == "new_project_name":
-        p = hub.projects.create_project(text, data.get("project_type", "2d"))
+        p = hub.projects.create_project(text, data.get("project_type", "slideshow"))
         hub.extra["conv"].clear(uid)
         hub.audit.record("project_create", "ok", "project", p["id"])
         await message.answer("✅ Project ban gaya!", parse_mode=None)
