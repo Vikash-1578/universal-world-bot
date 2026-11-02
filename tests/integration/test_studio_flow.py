@@ -29,7 +29,7 @@ class StudioFlowTests(TempDirCase):
         await feed(self.bot, self.dp, msg_update(SCRIPT))
         v = self.hub.scripts.latest(pid)
         self.assertEqual(v["approval_status"], "draft")
-        self.assertTrue(any("Characters: Khargosh, Sher, Kachhua" in t for t in texts(self.sess)))
+        self.assertTrue(any("Speakers: Khargosh, Sher, Kachhua" in t for t in texts(self.sess)))
         await feed(self.bot, self.dp, cb_update(make("ss", "approve", v["id"])))
         self.assertIsNone(self.hub.scripts.approved(pid))  # confirmation needed
         await feed(self.bot, self.dp, cb_update(make("ss", "approve_ok", v["id"])))
