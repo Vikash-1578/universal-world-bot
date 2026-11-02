@@ -15,7 +15,7 @@ from app.observability.log import get_logger
 log = get_logger(__name__)
 MAX_BYTES = 1_500_000
 # Wikipedia asks for a descriptive agent; many other sites block anything that does not look like a browser.
-WIKI_UA = {"User-Agent": "UniversalWorldBot/1.0 (personal, non-commercial research tool; Python aiohttp)"}
+WIKI_UA = {"User-Agent": "UniversalWorldBot/1.0 (https://github.com/Vikash-1578/universal-world-bot; personal non-commercial research) aiohttp"}
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36",
       "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Accept-Language": "en-US,en;q=0.9"}
 A_SUFFIX = (".gov", ".edu", ".mil", ".gov.in", ".ac.in", ".gov.uk", ".ac.uk", ".nic.in")
@@ -150,9 +150,22 @@ class Web:
         self.errors: list[str] = []      # last fetch problems, e.g. "britannica.com: HTTP 403"
 
     async def _get_json(self, s: aiohttp.ClientSession, url: str, **kw) -> dict:
-        async with s.get(url, **kw) as r:
-            r.raise_for_status()
-            return await r.json(content_type=None)
+        """GET json. On HTTP 429 wait as the server asks (Retry-After) and retry once."""
+        for attempt in range(2):
+            try:
+                async with s.get(url, **kw) as r:
+                    r.raise_for_status()
+                    return await r.json(content_type=None)
+            except aiohttp.ClientResponseError as e:
+                if e.status == 429 and attempt == 0:
+                    try:
+                        wait = float((e.headers or {}).get("Retry-After", 3))
+                    except (TypeError, ValueError):
+                        wait = 3.0
+                    await asyncio.sleep(min(max(wait, 2.0), 10.0))
+                    continue
+                raise
+        raise RuntimeError("unreachable")
 
     async def _reference_links(self, s: aiohttp.ClientSession, title: str) -> list[dict]:
         """External links of a Wikipedia article = the sources it cites (NASA, universities, news...). Keyless."""
@@ -163,7 +176,7 @@ class Web:
             await asyncio.sleep(0.4)
             return [{"url": u, "title": "(cited by Wikipedia)"} for u in clean_links(urls)]
         except Exception as e:  # noqa: BLE001
-            log.warning("wiki_extlinks_failed %s", type(e).__name__)
+            self._note("https://en.wikipedia.org", f"extlinks {self._why(e)}")
             return []
 
     async def search(self, query: str, limit: int = 4) -> list[dict]:
@@ -177,7 +190,7 @@ class Web:
                     t = h["title"]
                     hits.append({"url": "https://en.wikipedia.org/wiki/" + quote(t.replace(" ", "_")), "title": t})
             except Exception as e:  # noqa: BLE001
-                log.warning("wiki_search_failed %s", type(e).__name__)
+                self._note("https://en.wikipedia.org", f"search {self._why(e)}")
             for h in [x for x in hits if domain_of(x["url"]) == "wikipedia.org"][:2]:
                 hits += await self._reference_links(s, h["title"])
             if self.brave_key:
@@ -188,7 +201,7 @@ class Web:
                         if h.get("url") and safe_url(h["url"]):
                             hits.append({"url": h["url"], "title": str(h.get("title", ""))[:120]})
                 except Exception as e:  # noqa: BLE001
-                    log.warning("brave_search_failed %s", type(e).__name__)
+                    self._note("https://api.search.brave.com", f"search {self._why(e)}")
         if len({domain_of(h["url"]) for h in hits}) < 3:  # keyless fallback so the owner is not stuck with Wikipedia only
             try:
                 async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=8), headers=UA) as s:
@@ -196,7 +209,7 @@ class Web:
                         r.raise_for_status()
                         hits += parse_ddg(await r.text())[:limit + 2]
             except Exception as e:  # noqa: BLE001
-                log.warning("ddg_search_failed %s", type(e).__name__)
+                self._note("https://duckduckgo.com", f"search {self._why(e)}")
         seen, out = set(), []
         for h in hits:
             if h["url"] not in seen:
@@ -226,6 +239,10 @@ class Web:
                     self._note(url, type(e).__name__)
                     return None
         return None
+
+    @staticmethod
+    def _why(e: Exception) -> str:
+        return f"HTTP {e.status}" if isinstance(e, aiohttp.ClientResponseError) else type(e).__name__
 
     def _note(self, url: str, why: str) -> None:
         msg = f"{domain_of(url)}: {why}"
