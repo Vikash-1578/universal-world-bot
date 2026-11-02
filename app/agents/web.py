@@ -20,9 +20,13 @@ UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.3
       "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Accept-Language": "en-US,en;q=0.9"}
 A_SUFFIX = (".gov", ".edu", ".mil", ".gov.in", ".ac.in", ".gov.uk", ".ac.uk", ".nic.in")
 A_DOMAINS = {"nasa.gov", "britannica.com", "nature.com", "science.org", "who.int", "un.org", "unesco.org", "nih.gov", "si.edu",
-             "nationalgeographic.com", "smithsonianmag.com", "esa.int", "loc.gov", "archive.org"}
+             "nationalgeographic.com", "smithsonianmag.com", "esa.int", "loc.gov"}
 B_DOMAINS = {"wikipedia.org", "bbc.com", "bbc.co.uk", "reuters.com", "apnews.com", "history.com", "worldhistory.org",
              "livescience.com", "scientificamerican.com", "nytimes.com", "theguardian.com", "thehindu.com"}
+SKIP_DOMAINS = {"wikipedia.org", "wikimedia.org", "wikidata.org", "mediawiki.org", "wikisource.org", "wikibooks.org", "wikiquote.org",
+                "google.com", "amazon.com", "youtube.com", "facebook.com", "twitter.com", "x.com", "doi.org", "jstor.org",
+                "worldcat.org", "goodreads.com", "imdb.com", "archive.org"}
+_WAYBACK = re.compile(r"^https?://web\.archive\.org/web/\d+[a-z_]*/(https?://.+)$", re.I)
 TWO_LEVEL = ("co.uk", "gov.uk", "ac.uk", "gov.in", "ac.in", "nic.in", "com.au", "co.in", "co.jp")
 
 
@@ -39,6 +43,25 @@ def tier_of(domain: str) -> str:
     if domain in A_DOMAINS or domain.endswith(A_SUFFIX):
         return "A"
     return "B" if domain in B_DOMAINS else "C"
+
+
+def clean_links(urls: list[str], limit: int = 12) -> list[str]:
+    """Wikipedia reference links -> usable pages: unwrap web.archive.org snapshots, drop shops/social/paywalls,
+    keep ONE link per domain (independent domains are what the Accuracy agent counts)."""
+    out, doms = [], set()
+    for u in urls:
+        m = _WAYBACK.match(u)
+        u = m.group(1) if m else u
+        if not safe_url(u) or u.lower().endswith((".pdf", ".jpg", ".png", ".zip")):
+            continue
+        d = domain_of(u)
+        if d in SKIP_DOMAINS or d in doms:
+            continue
+        doms.add(d)
+        out.append(u)
+        if len(out) >= limit:
+            break
+    return out
 
 
 def safe_url(url: str) -> bool:
@@ -131,6 +154,18 @@ class Web:
             r.raise_for_status()
             return await r.json(content_type=None)
 
+    async def _reference_links(self, s: aiohttp.ClientSession, title: str) -> list[dict]:
+        """External links of a Wikipedia article = the sources it cites (NASA, universities, news...). Keyless."""
+        try:
+            d = await self._get_json(s, "https://en.wikipedia.org/w/api.php", params={
+                "action": "query", "prop": "extlinks", "titles": title, "ellimit": 60, "format": "json", "formatversion": 2})
+            urls = [x.get("url", "") for p in d.get("query", {}).get("pages", []) for x in p.get("extlinks", [])]
+            await asyncio.sleep(0.4)
+            return [{"url": u, "title": "(cited by Wikipedia)"} for u in clean_links(urls)]
+        except Exception as e:  # noqa: BLE001
+            log.warning("wiki_extlinks_failed %s", type(e).__name__)
+            return []
+
     async def search(self, query: str, limit: int = 4) -> list[dict]:
         """-> [{url, title}] from Wikipedia (+ Brave). Failures return what worked; never raises."""
         hits: list[dict] = []
@@ -143,6 +178,8 @@ class Web:
                     hits.append({"url": "https://en.wikipedia.org/wiki/" + quote(t.replace(" ", "_")), "title": t})
             except Exception as e:  # noqa: BLE001
                 log.warning("wiki_search_failed %s", type(e).__name__)
+            for h in [x for x in hits if domain_of(x["url"]) == "wikipedia.org"][:2]:
+                hits += await self._reference_links(s, h["title"])
             if self.brave_key:
                 try:
                     d = await self._get_json(s, "https://api.search.brave.com/res/v1/web/search", params={"q": query, "count": limit},
@@ -154,7 +191,7 @@ class Web:
                     log.warning("brave_search_failed %s", type(e).__name__)
         if len({domain_of(h["url"]) for h in hits}) < 3:  # keyless fallback so the owner is not stuck with Wikipedia only
             try:
-                async with aiohttp.ClientSession(timeout=self.timeout, headers=UA) as s:
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=8), headers=UA) as s:
                     async with s.get("https://html.duckduckgo.com/html/", params={"q": query}) as r:
                         r.raise_for_status()
                         hits += parse_ddg(await r.text())[:limit + 2]
@@ -177,7 +214,11 @@ class Web:
                     return await self._fetch_once(url)
                 except aiohttp.ClientResponseError as e:
                     if e.status == 429 and attempt == 0:
-                        await asyncio.sleep(2.5)  # rate limited: wait once, then retry
+                        try:
+                            wait = float((e.headers or {}).get("Retry-After", 3))
+                        except (TypeError, ValueError):
+                            wait = 3.0
+                        await asyncio.sleep(min(max(wait, 2.0), 10.0))  # rate limited: wait as asked, then retry once
                         continue
                     self._note(url, f"HTTP {e.status}")
                     return None
@@ -201,6 +242,7 @@ class Web:
                     "action": "query", "prop": "extracts", "explaintext": 1, "redirects": 1, "titles": title, "format": "json"})
                 page = next(iter(d.get("query", {}).get("pages", {}).values()), {})
                 text = page.get("extract") or ""
+                await asyncio.sleep(0.6)  # pace Wikipedia requests (it answers HTTP 429 to bursts)
                 return {"url": url, "title": page.get("title", ""), "text": text} if text else None
             async with s.get(url, allow_redirects=True) as r:
                 r.raise_for_status()

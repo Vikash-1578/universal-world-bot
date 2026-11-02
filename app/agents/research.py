@@ -13,6 +13,7 @@ from app.agents.web import domain_of
 from app.core.errors import InvalidInput
 
 MAX_SOURCES = 8
+WIKI_SKIP_AFTER = 2  # at most this many Wikipedia pages: more of the same site adds no independent proof
 MAX_CLAIMS = 30
 QUERY_PROMPT = """Topic for a factual YouTube video: {topic}
 Write 3-5 web search queries that would find reliable pages (encyclopedias, universities, museums, science/history sites).
@@ -62,7 +63,14 @@ class ResearchAgent(Agent):
             d = domain_of(h["url"])
             (rest if d in doms else firsts).append(h)
             doms.add(d)
-        order = (firsts + rest)[: limit * 2]
+        order, wiki = [], 0
+        for h in firsts + rest:
+            if domain_of(h["url"]) == "wikipedia.org":
+                wiki += 1
+                if wiki > WIKI_SKIP_AFTER:
+                    continue
+            order.append(h)
+        order = order[: limit * 2]
         pages = await asyncio.gather(*(self.hub.web.fetch(h["url"]) for h in order))
         out: list[Source] = []
         for h, p in zip(order, pages):

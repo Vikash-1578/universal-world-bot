@@ -4,7 +4,7 @@ import json
 
 from app.agents.accuracy import script_flags
 from app.agents.evidence import quote_in
-from app.agents.web import domain_of, html_to_text, parse_ddg, safe_url, tier_of
+from app.agents.web import clean_links, domain_of, html_to_text, parse_ddg, safe_url, tier_of
 from tests.helpers import TempDirCase, make_hub
 
 BERMUDA = ("The Bermuda Triangle is a loosely defined region in the western part of the North Atlantic Ocean. "
@@ -138,6 +138,13 @@ class AgentTests(TempDirCase):
         html = ('<a rel="nofollow" class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.nasa.gov%2Fx&amp;rut=abc">NASA <b>page</b></a>'
                 '<a class="result__a" href="http://127.0.0.1/secret">bad</a>')
         self.assertEqual(parse_ddg(html), [{"url": "https://www.nasa.gov/x", "title": "NASA page"}])
+
+    async def test_clean_links_unwraps_archive_and_keeps_one_per_domain(self):
+        urls = ["https://web.archive.org/web/20200101000000/https://www.nasa.gov/a", "https://www.nasa.gov/b",
+                "https://www.amazon.com/book", "https://en.wikipedia.org/wiki/X", "https://doi.org/10.1/x", "http://127.0.0.1/x",
+                "https://www.bbc.com/news/1", "https://www.bbc.com/news/2", "https://x.edu/paper.pdf"]
+        self.assertEqual(clean_links(urls), ["https://www.nasa.gov/a", "https://www.bbc.com/news/1"])
+        self.assertEqual(tier_of("archive.org"), "C")  # a web.archive.org snapshot must never count as a top source
 
     async def test_quote_must_really_be_on_the_page(self):
         self.assertTrue(quote_in("flight 19 was a group of five US Navy torpedo bombers", "Flight 19 was a group of five US Navy torpedo bombers!"))
