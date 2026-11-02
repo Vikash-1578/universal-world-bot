@@ -42,8 +42,6 @@ class Orchestrator:
         mapping = {
             AgentState.RESEARCHING: self.hub.research_agent,
             AgentState.VERIFYING_ACCURACY: self.hub.accuracy_agent,
-            AgentState.SCRIPTING: self.hub.scripting_agent,
-            AgentState.CHECKING_VIRALITY: self.hub.virality_agent,
             # Other agents will be added here as we build them
         }
         return mapping.get(state)
