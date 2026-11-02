@@ -13,6 +13,7 @@ from app.agents.web import domain_of
 from app.core.errors import InvalidInput
 
 MAX_SOURCES = 8
+MIN_PAGE = 800  # shorter pages (stubs, catalogue records) hold nothing worth quoting
 WIKI_SKIP_AFTER = 2  # at most this many Wikipedia pages: more of the same site adds no independent proof
 MAX_CLAIMS = 30
 QUERY_PROMPT = """Topic for a factual YouTube video: {topic}
@@ -63,19 +64,22 @@ class ResearchAgent(Agent):
             d = domain_of(h["url"])
             (rest if d in doms else firsts).append(h)
             doms.add(d)
-        order, wiki = [], 0
+        cands, wiki = [], 0
         for h in firsts + rest:
             if domain_of(h["url"]) == "wikipedia.org":
                 wiki += 1
                 if wiki > WIKI_SKIP_AFTER:
                     continue
-            order.append(h)
-        order = order[: limit * 2]
-        pages = await asyncio.gather(*(self.hub.web.fetch(h["url"]) for h in order))
+            cands.append(h)
         out: list[Source] = []
-        for h, p in zip(order, pages):
-            if p and len(p["text"]) > 300 and len(out) < limit:
-                out.append(store.add(p["url"], p["title"] or h["title"], p["text"]))
+        for i in range(0, min(len(cands), limit * 5), 6):  # fetch in small batches until enough pages really opened
+            if len(out) >= limit:
+                break
+            batch = cands[i:i + 6]
+            pages = await asyncio.gather(*(self.hub.web.fetch(h["url"]) for h in batch))
+            for h, p in zip(batch, pages):
+                if p and len(p["text"]) >= MIN_PAGE and len(out) < limit:
+                    out.append(store.add(p["url"], p["title"] or h["title"], p["text"]))
         return out
 
     async def run(self, brief: Brief, store: EvidenceStore) -> AgentResult:

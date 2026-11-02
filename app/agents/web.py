@@ -26,6 +26,7 @@ B_DOMAINS = {"wikipedia.org", "bbc.com", "bbc.co.uk", "reuters.com", "apnews.com
 SKIP_DOMAINS = {"wikipedia.org", "wikimedia.org", "wikidata.org", "mediawiki.org", "wikisource.org", "wikibooks.org", "wikiquote.org",
                 "google.com", "amazon.com", "youtube.com", "facebook.com", "twitter.com", "x.com", "doi.org", "jstor.org",
                 "worldcat.org", "goodreads.com", "imdb.com", "archive.org"}
+CATALOG_PARTS = ("/viaf/", "/gnd/", "/authorities/", "ark:/", "ccl_term=", "/authority/", "id.loc.gov")  # library records, not articles
 _WAYBACK = re.compile(r"^https?://web\.archive\.org/web/\d+[a-z_]*/(https?://.+)$", re.I)
 TWO_LEVEL = ("co.uk", "gov.uk", "ac.uk", "gov.in", "ac.in", "nic.in", "com.au", "co.in", "co.jp")
 
@@ -52,7 +53,7 @@ def clean_links(urls: list[str], limit: int = 12) -> list[str]:
     for u in urls:
         m = _WAYBACK.match(u)
         u = m.group(1) if m else u
-        if not safe_url(u) or u.lower().endswith((".pdf", ".jpg", ".png", ".zip")):
+        if not safe_url(u) or u.lower().endswith((".pdf", ".jpg", ".png", ".zip")) or any(x in u.lower() for x in CATALOG_PARTS):
             continue
         d = domain_of(u)
         if d in SKIP_DOMAINS or d in doms:

@@ -15,7 +15,7 @@ BERMUDA = ("The Bermuda Triangle is a loosely defined region in the western part
 PAGES = {
     "https://en.wikipedia.org/wiki/Bermuda_Triangle": ("Bermuda Triangle - Wikipedia", BERMUDA),
     "https://www.britannica.com/place/Bermuda-Triangle": ("Bermuda Triangle | Britannica", BERMUDA),
-    "https://example-blog.com/bermuda": ("Blog", "A blog says aliens abduct ships in the triangle every single year without exception, sources unknown. " * 5),
+    "https://example-blog.com/bermuda": ("Blog", "A blog says aliens abduct ships in the triangle every single year without exception, sources unknown. " * 12),
 }
 GOOD = """Title: Bermuda Triangle ka raaz
 [Scene 1: Hook]
@@ -142,7 +142,7 @@ class AgentTests(TempDirCase):
     async def test_clean_links_unwraps_archive_and_keeps_one_per_domain(self):
         urls = ["https://web.archive.org/web/20200101000000/https://www.nasa.gov/a", "https://www.nasa.gov/b",
                 "https://www.amazon.com/book", "https://en.wikipedia.org/wiki/X", "https://doi.org/10.1/x", "http://127.0.0.1/x",
-                "https://www.bbc.com/news/1", "https://www.bbc.com/news/2", "https://x.edu/paper.pdf"]
+                "https://www.bbc.com/news/1", "https://www.bbc.com/news/2", "https://x.edu/paper.pdf", "https://viaf.org/viaf/248502627", "https://d-nb.info/gnd/4005760-4"]
         self.assertEqual(clean_links(urls), ["https://www.nasa.gov/a", "https://www.bbc.com/news/1"])
         self.assertEqual(tier_of("archive.org"), "C")  # a web.archive.org snapshot must never count as a top source
 
